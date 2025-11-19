@@ -29,6 +29,12 @@ Before using this tool, ensure you have:
 1. **[Node.js](https://nodejs.org/)** (v18.0.0 or higher)
 2. **[Codex CLI](https://github.com/openai/codex)** installed and authenticated
 
+### Platform Support
+
+✅ **Windows, macOS, and Linux fully supported**
+
+**v1.2.4** introduced cross-platform compatibility improvements using `cross-spawn`, ensuring reliable command execution across all operating systems. Windows users no longer experience "spawn codex ENOENT" errors.
+
 ### One-Line Setup
 
 ```bash
@@ -111,8 +117,16 @@ After updating the configuration, restart your terminal session.
 
 ### Model Selection
 
+Default: `gpt-5.1-codex-max` (v1.3.0+) with automatic fallback → `gpt-5-codex` → `gpt-5` when newer models are unavailable.
+
+**GPT-5.1 family with examples**
+
+- `gpt-5.1-codex-max` — default for complex, multi-file edits (`'use codex to refactor @src with model gpt-5.1-codex-max'`)
+- `gpt-5.1-codex-mini` — cost-efficient quick passes (`'use codex with model gpt-5.1-codex-mini to scan @utils'`)
+- `gpt-5.1`, `gpt-5.1-mini`, `gpt-5.1-nano` — general-purpose GPT-5.1 variants (`'ask codex using gpt-5.1-nano for a fast read on @README.md'`)
+
 ```javascript
-// Use the default gpt-5-codex model
+// Use the default gpt-5.1-codex-max model (falls back to gpt-5-codex → gpt-5)
 'explain the architecture of @src/';
 
 // Use gpt-5 for fast general purpose reasoning
@@ -152,6 +166,12 @@ Codex supports approval/sandbox modes. This server uses `codex exec` and can opt
 - `use codex to create and run a Python script that processes data`
 - `ask codex to safely test @script.py and explain what it does`
 
+### Native Search
+
+- Enable search with `search:true` or the `--search` flag; defaults to `workspace-write` sandbox for network access
+- Dual-flag compatibility: sends native `--search` on Codex CLI v0.52.0+ and always enables the `web_search_request` feature flag for older versions
+- Works alongside `oss`/feature toggles without manual client changes
+
 ### Advanced Examples
 
 ```javascript
@@ -173,22 +193,28 @@ These tools are designed to be used by the AI assistant.
 
 - **`ask-codex`**: Sends a prompt to Codex via `codex exec`.
   - Supports `@` file references for including file content
-  - Optional `model` parameter - available models:
-    - `gpt-5-codex` (default, optimized for coding)
+  - Optional `model` parameter; default: `gpt-5.1-codex-max` with fallback chain `gpt-5.1-codex-max → gpt-5-codex → gpt-5` when a model is unavailable
+  - GPT-5.1 family stays enabled automatically on Codex CLI v0.56.0+; older CLI versions trigger the fallback chain
+  - Available models:
+    - `gpt-5.1-codex-max` (NEW DEFAULT v1.3.0, highest reliability)
+    - `gpt-5.1-codex-mini` (cost-efficient, quick tasks)
+    - `gpt-5.1`, `gpt-5.1-mini`, `gpt-5.1-nano` (GPT-5.1 family)
+    - `gpt-5-codex` (previous default, still supported)
     - `gpt-5` (general purpose, fast reasoning)
     - `o3` (smartest, deep reasoning)
     - `o4-mini` (fast & efficient)
     - `codex-1` (o3-based for software engineering)
     - `codex-mini-latest` (low-latency code Q&A)
-    - `gpt-4.1` (also available)
+    - `gpt-4.1` (legacy support)
+  - Native Search: uses dual flags (adds `--search` on v0.52.0+ and always enables `web_search_request`) for compatibility
   - `sandbox=true` enables `--full-auto` mode
   - `changeMode=true` returns structured OLD/NEW edits
-  - Supports approval policies and sandbox modes
+  - Supports approval policies, sandbox modes, and verbose control via `toolOutputTokenLimit`
 
 - **`brainstorm`**: Generate novel ideas with structured methodologies.
   - Multiple frameworks: divergent, convergent, SCAMPER, design-thinking, lateral
   - Domain-specific context (software, business, creative, research, product, marketing)
-  - Supports same models as `ask-codex` (default: `gpt-5-codex`)
+  - Supports same models as `ask-codex` (default: `gpt-5.1-codex-max` with the same fallback chain)
   - Configurable idea count and analysis depth
   - Includes feasibility, impact, and innovation scoring
   - Example: `brainstorm prompt:"ways to improve code review process" domain:"software" methodology:"scamper"`
@@ -209,6 +235,26 @@ These tools are designed to be used by the AI assistant.
   - Runs for a specified duration in milliseconds
   - Useful for testing long-running operations
 
+## Advanced Features (v1.3.0+)
+
+### Version Detection & Compatibility
+
+- Automatically parses `codex --version` to toggle feature flags and pick the safest model available
+- GPT-5.1 family is auto-enabled on Codex CLI v0.56.0+; older versions gracefully fall back to `gpt-5-codex` → `gpt-5`
+- Native search, `--add-dir`, and token-limit flags are only sent when your installed CLI supports them
+
+### Multi-Directory Projects
+
+- Use `addDirs` to allow writes across multiple repositories or temp folders (requires Codex CLI v0.59.0+)
+- Example: `ask codex prompt:"upgrade shared configs" addDirs:["../shared-config","/tmp/sandbox"]`
+- The tool auto-skips unsupported flags on older CLI builds while logging a warning
+
+### Response Verbosity Control
+
+- Cap tool outputs with `toolOutputTokenLimit` (range: 100–10,000) to tame noisy commands
+- Example: `ask codex prompt:"summarize @logs" toolOutputTokenLimit:500`
+- Great for CI logs or quick scans where concise responses are needed
+
 ### Slash Commands (for the User)
 
 You can use these commands directly in Claude Code's interface (compatibility with other clients has not been tested).
@@ -220,6 +266,37 @@ You can use these commands directly in Claude Code's interface (compatibility wi
 - **/help**: Displays the Codex CLI help information.
 - **/ping**: Tests the connection to the server.
   - **`message`** (optional): A message to echo back.
+
+## Codex CLI Compatibility
+
+| Codex CLI version | What you get                                               | Model behavior                                                                     |
+| ----------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| v0.59.0+          | `--add-dir`, `tool_output_token_limit`, Windows agent mode | Full GPT-5.1 support with fallback chain `gpt-5.1-codex-max → gpt-5-codex → gpt-5` |
+| v0.56.0+          | GPT-5.1 family unlocked                                    | Uses GPT-5.1 models directly; still falls back if a model is missing               |
+| v0.52.0+          | Native `--search` flag                                     | Dual-flag search (`--search` + `web_search_request`) for reliability               |
+| earlier           | Legacy-only flags                                          | Forces fallback to `gpt-5-codex`/`gpt-5`, skips unsupported flags with warnings    |
+
+## Troubleshooting (legacy versions)
+
+- Run `codex --version` to confirm your CLI build; upgrade to v0.59.0+ for full v1.3.0 features
+- If GPT-5.1 models error on older CLIs, explicitly set `model:"gpt-5-codex"` (the fallback will apply automatically otherwise)
+- Remove `addDirs` or `toolOutputTokenLimit` if you see unsupported flag warnings; they require v0.59.0+
+- Web search issues on pre-v0.52.0 builds: rely on the `web_search_request` feature flag only, or upgrade for the `--search` flag
+
+## FAQ
+
+- **What model is used by default?** `gpt-5.1-codex-max` with fallback to `gpt-5-codex` then `gpt-5`.
+- **How do I switch to a cheaper model?** Set `model:"gpt-5.1-codex-mini"` (or `gpt-5.1-nano` for fastest scans) in your tool call.
+- **Can I limit output verbosity?** Yes—use `toolOutputTokenLimit` between 100 and 10,000 to cap tool responses.
+- **How do I let Codex touch multiple repos?** Pass `addDirs:["../shared","/tmp/work"]` (CLI v0.59.0+); older versions will warn and skip the flag.
+- **How is native search handled?** The tool sends both `--search` (when available) and the `web_search_request` feature flag to stay compatible.
+
+## Migration: v1.2.x → v1.3.0
+
+- Default model switches to `gpt-5.1-codex-max`; fallback chain now formalized (`gpt-5.1-codex-max → gpt-5-codex → gpt-5`)
+- New features: `addDirs` for multi-directory writes and `toolOutputTokenLimit` for output control (both require Codex CLI v0.59.0+)
+- Native search now uses the dual-flag approach automatically; no config changes needed
+- Recommendation: update Codex CLI to v0.59.0+ and refresh your MCP config (no schema changes—existing `/mcp` entries still work)
 
 ## Acknowledgments
 

@@ -13,7 +13,7 @@ const askCodexArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5-codex`),
+    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.1-codex-max`),
   sandbox: z
     .boolean()
     .default(false)
@@ -70,7 +70,7 @@ const askCodexArgsSchema = z.object({
     .boolean()
     .optional()
     .describe(
-      'Enable web search by activating web_search_request feature flag. Requires network access - automatically sets sandbox to workspace-write if not specified.'
+      'Enable web search using native --search flag (v0.52.0+). Requires network access - automatically sets sandbox to workspace-write if not specified.'
     ),
   oss: z
     .boolean()
@@ -86,6 +86,19 @@ const askCodexArgsSchema = z.object({
     .array(z.string())
     .optional()
     .describe('Disable feature flags (repeatable). Equivalent to -c features.<name>=false'),
+  // New parameters (v1.3.0+)
+  addDirs: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Additional writable directories beyond workspace (e.g., ["/tmp", "/var/log"]). Useful for monorepos and multi-directory projects.'
+    ),
+  toolOutputTokenLimit: z
+    .number()
+    .min(100)
+    .max(10000)
+    .optional()
+    .describe('Maximum tokens for tool outputs (100-10,000). Controls response verbosity.'),
 });
 
 export const askCodexTool: UnifiedTool = {
@@ -122,6 +135,8 @@ export const askCodexTool: UnifiedTool = {
       oss,
       enableFeatures,
       disableFeatures,
+      addDirs,
+      toolOutputTokenLimit,
     } = args;
 
     if (!prompt?.trim()) {
@@ -157,6 +172,8 @@ export const askCodexTool: UnifiedTool = {
           oss: oss as boolean,
           enableFeatures: enableFeatures as string[],
           disableFeatures: disableFeatures as string[],
+          addDirs: addDirs as string[],
+          toolOutputTokenLimit: toolOutputTokenLimit as number,
         },
         onProgress
       );

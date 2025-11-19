@@ -77,39 +77,48 @@ export function findProjectRoot(startPath: string): string {
  * Ensures that the provided path points to a directory.
  * If the path is a file, returns its parent directory.
  * If the path doesn't exist or is invalid, returns undefined.
+ * Supports both absolute and relative paths.
  *
- * @param path - The file or directory path
+ * @param path - The file or directory path (absolute or relative)
+ * @param baseDir - Base directory for resolving relative paths (default: process.cwd())
  * @returns The directory path, or undefined if invalid
  */
-export function ensureDirectory(path?: string): string | undefined {
+export function ensureDirectory(
+  path?: string,
+  baseDir: string = process.cwd()
+): string | undefined {
   if (!path) {
     return undefined;
   }
 
   try {
+    // Resolve to absolute path if relative
+    const absolutePath = isAbsolute(path) ? path : resolve(baseDir, path);
+    Logger.debug(`Resolving path: ${path} -> ${absolutePath} (base: ${baseDir})`);
+
     // Check if path exists
-    if (!existsSync(path)) {
-      Logger.debug(`Path does not exist: ${path}`);
+    if (!existsSync(absolutePath)) {
+      Logger.debug(`Path does not exist: ${absolutePath}`);
       return undefined;
     }
 
     // Get file stats
-    const stats = statSync(path);
+    const stats = statSync(absolutePath);
 
     // If it's a directory, return as-is
     if (stats.isDirectory()) {
-      return path;
+      return absolutePath;
     }
 
     // If it's a file, return its parent directory
     if (stats.isFile()) {
-      const parentDir = dirname(path);
+      const parentDir = dirname(absolutePath);
       Logger.debug(`Path is a file, using parent directory: ${parentDir}`);
       return parentDir;
     }
 
     // If it's neither file nor directory (symlink, etc.), try to resolve
-    Logger.debug(`Path is neither file nor directory: ${path}`);
+    Logger.debug(`Path is neither file nor directory: ${absolutePath}`);
     return undefined;
   } catch (error) {
     Logger.debug(`Error in ensureDirectory: ${error}`);
@@ -118,18 +127,21 @@ export function ensureDirectory(path?: string): string | undefined {
 }
 
 /**
- * Extract absolute file paths from @path syntax in the prompt.
- * Supports both quoted and unquoted paths.
+ * Extract file paths from @path syntax in the prompt.
+ * Supports both quoted and unquoted paths, absolute and relative.
  *
  * Examples:
- * - @/absolute/path/to/file.ts
- * - @"/path with spaces/file.ts"
- * - @'/path with spaces/file.ts'
+ * - @/absolute/path/to/file.ts (absolute)
+ * - @./relative/path/to/file.ts (relative)
+ * - @src/file.ts (relative)
+ * - @"path with spaces/file.ts" (quoted, can be absolute or relative)
+ * - @'path with spaces/file.ts' (quoted, can be absolute or relative)
  *
  * @param prompt - The user prompt that may contain @path references
+ * @param baseDir - Base directory for resolving relative paths (default: process.cwd())
  * @returns Array of absolute paths found in the prompt
  */
-export function extractPathFromAtSyntax(prompt: string): string[] {
+export function extractPathFromAtSyntax(prompt: string, baseDir: string = process.cwd()): string[] {
   const paths: string[] = [];
 
   // Pattern 1: Quoted paths with @ prefix: @"path" or @'path'
@@ -138,19 +150,29 @@ export function extractPathFromAtSyntax(prompt: string): string[] {
 
   while ((match = quotedPathRegex.exec(prompt)) !== null) {
     const path = match[1];
-    if (isAbsolute(path)) {
-      paths.push(path);
-    }
+    // Convert to absolute if relative
+    const absolutePath = isAbsolute(path) ? path : resolve(baseDir, path);
+    paths.push(absolutePath);
+    Logger.debug(`Extracted quoted @path: ${path} -> ${absolutePath}`);
   }
 
-  // Pattern 2: Unquoted paths with @ prefix: @/path (no spaces)
-  const unquotedPathRegex = /@(\/[^\s"']+)/g;
+  // Pattern 2: Unquoted absolute paths: @/path
+  const absolutePathRegex = /@(\/[^\s"']+)/g;
 
-  while ((match = unquotedPathRegex.exec(prompt)) !== null) {
+  while ((match = absolutePathRegex.exec(prompt)) !== null) {
     const path = match[1];
-    if (isAbsolute(path)) {
-      paths.push(path);
-    }
+    paths.push(path);
+    Logger.debug(`Extracted absolute @path: ${path}`);
+  }
+
+  // Pattern 3: Unquoted relative paths: @./path or @../path or @word/path
+  const relativePathRegex = /@(\.{1,2}\/[^\s"']+|[a-zA-Z0-9_-]+\/[^\s"']+)/g;
+
+  while ((match = relativePathRegex.exec(prompt)) !== null) {
+    const path = match[1];
+    const absolutePath = resolve(baseDir, path);
+    paths.push(absolutePath);
+    Logger.debug(`Extracted relative @path: ${path} -> ${absolutePath}`);
   }
 
   Logger.debug(`Extracted ${paths.length} paths from @syntax: ${paths.join(', ')}`);
@@ -175,9 +197,13 @@ export function resolveWorkingDirectory(options?: {
 }): string | undefined {
   const { workingDir, prompt } = options || {};
 
+  // Get a base directory for resolving relative paths
+  const baseDir =
+    process.env['CODEX_MCP_CWD'] || process.env['PWD'] || process.env['INIT_CWD'] || process.cwd();
+
   // Priority 1: Explicit workingDir parameter
   if (workingDir) {
-    const validDir = ensureDirectory(workingDir);
+    const validDir = ensureDirectory(workingDir, baseDir);
     if (validDir) {
       Logger.debug(`Using explicit working directory: ${validDir}`);
       return validDir;
@@ -191,7 +217,7 @@ export function resolveWorkingDirectory(options?: {
   for (const envVar of envVars) {
     const envValue = process.env[envVar];
     if (envValue) {
-      const validDir = ensureDirectory(envValue);
+      const validDir = ensureDirectory(envValue, process.cwd());
       if (validDir) {
         Logger.debug(`Using environment variable ${envVar}: ${validDir}`);
         return validDir;
@@ -203,7 +229,7 @@ export function resolveWorkingDirectory(options?: {
 
   // Priority 3: Automatic inference from @path syntax
   if (prompt) {
-    const paths = extractPathFromAtSyntax(prompt);
+    const paths = extractPathFromAtSyntax(prompt, baseDir);
 
     for (const path of paths) {
       if (existsSync(path)) {

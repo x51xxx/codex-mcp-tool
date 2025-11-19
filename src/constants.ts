@@ -26,8 +26,16 @@ export const STATUS_MESSAGES = {
 
 // Models
 export const MODELS = {
-  GPT5_CODEX: 'gpt-5-codex',
+  // GPT-5.1 Series (Latest - 2025)
+  GPT5_1_CODEX_MAX: 'gpt-5.1-codex-max', // Default (v1.3.0+): Frontier agentic coding with highest reliability
+  GPT5_1_CODEX_MINI: 'gpt-5.1-codex-mini', // Cost-efficient compact model
+  GPT5_1: 'gpt-5.1', // General purpose GPT-5.1
+  GPT5_1_MINI: 'gpt-5.1-mini', // Balanced performance
+  GPT5_1_NANO: 'gpt-5.1-nano', // Fastest for simple queries
+  // GPT-5 Series (Legacy)
+  GPT5_CODEX: 'gpt-5-codex', // Previous default
   GPT5: 'gpt-5',
+  // Other Models
   O3: 'o3',
   O4_MINI: 'o4-mini',
   CODEX_1: 'codex-1',
@@ -104,6 +112,9 @@ export const CLI = {
     OSS: '--oss',
     ENABLE: '--enable',
     DISABLE: '--disable',
+    // New flags (v1.3.0+)
+    SEARCH: '--search', // Native web search flag (Codex CLI v0.52.0+)
+    ADD_DIR: '--add-dir', // Additional writable directories (Codex CLI v0.59.0+)
   },
   // Default values
   DEFAULTS: {
@@ -149,6 +160,9 @@ export interface ToolArguments {
   oss?: boolean; // Use local Ollama server (model_provider=oss)
   enableFeatures?: string[]; // Enable feature flags
   disableFeatures?: string[]; // Disable feature flags
+  // New parameters (v1.3.0+)
+  addDirs?: string[]; // Additional writable directories beyond workspace
+  toolOutputTokenLimit?: number; // Max tokens for tool outputs (100-10,000)
 
   // Brainstorming tool
   methodology?: string; // Brainstorming framework to use

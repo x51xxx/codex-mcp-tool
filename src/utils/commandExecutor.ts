@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import spawn from 'cross-spawn';
 import { Logger } from './logger.js';
 
 export interface CommandResult {
@@ -111,7 +111,7 @@ async function executeOnce(
       }
     }, timeoutMs || 600000);
 
-    childProcess.stdout.on('data', (data: Buffer) => {
+    childProcess.stdout?.on('data', (data: Buffer) => {
       // Check output size limit
       if (maxOutputBytes && totalStdoutBytes + data.length > maxOutputBytes) {
         if (!outputExceeded) {
@@ -132,7 +132,7 @@ async function executeOnce(
     });
 
     // Capture stderr for error reporting
-    childProcess.stderr.on('data', (data: Buffer) => {
+    childProcess.stderr?.on('data', (data: Buffer) => {
       stderrChunks.push(data);
     });
     childProcess.on('error', error => {
