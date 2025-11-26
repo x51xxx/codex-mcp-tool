@@ -19,4 +19,15 @@ docs/.vitepress/dist/
 extension-build/
 CLAUDE.md
 
+# Local development and testing directories
 sandbox/
+.claude/
+.gemini/
+.opencode/
+resource/
+
+# Local MCP configuration
+.mcp.json
+
+# Test scripts (optional - comment out if needed)
+test-features.sh

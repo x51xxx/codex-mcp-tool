@@ -2,6 +2,47 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2025-11-26
+
+### Added
+
+- **Session Management**: Multi-turn conversation support with workspace isolation
+  - `sessionId` parameter in ask-codex for conversation continuity
+  - `resetSession` parameter to start fresh conversations
+  - Sessions isolated by workspace (MD5 hash of repo:branch:path)
+  - Configurable TTL via `CODEX_SESSION_TTL_MS` (default: 24 hours)
+  - Maximum 50 sessions with automatic cleanup (`CODEX_MAX_SESSIONS`)
+
+- **Native Codex Resume**: Integration with `codex resume` command (CLI v0.36.0+)
+  - Automatic conversation ID extraction from Codex output
+  - Seamless fallback to exec mode for older CLI versions
+
+- **New Tools**:
+  - `list-sessions`: View, delete, or clear active sessions
+  - `health`: System diagnostics with feature detection, version info, and recommendations
+
+- **Structured Error Handling**: 8 error categories with user-friendly messages
+  - CLI_NOT_FOUND, AUTHENTICATION, RATE_LIMIT, TIMEOUT
+  - SANDBOX, NETWORK, SESSION, UNKNOWN
+  - Each error includes actionable solutions
+
+### Changed
+
+- Version caching: 5-minute cache for Codex CLI version checks (performance optimization)
+- Error responses now include structured solutions and recommendations
+- Tool registry expanded with session and diagnostics tools
+
+### Technical
+
+- Added `sessionStorage.ts`: In-memory session management with workspace isolation
+- Added `errorTypes.ts`: Structured error classification and formatting
+- Added `list-sessions.tool.ts`: Session management tool
+- Added `health.tool.ts`: System health diagnostics tool
+- Updated `versionDetection.ts`: Added RESUME feature detection and caching
+- Updated `codexCommandBuilder.ts`: Resume mode support
+- Updated `codexExecutor.ts`: codexConversationId option
+- Updated `ask-codex.tool.ts`: Session management integration
+
 ## [1.3.0] - 2025-01-19
 
 ### Added

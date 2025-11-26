@@ -127,7 +127,7 @@ export const batchCodexTool: UnifiedTool = {
         results.push({
           task: taskPrompt,
           status: 'success',
-          output: result.substring(0, 500), // Truncate for summary
+          output: result.output.substring(0, 500), // Truncate for summary
         });
         successCount++;
 

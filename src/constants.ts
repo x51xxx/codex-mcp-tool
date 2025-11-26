@@ -115,6 +115,8 @@ export const CLI = {
     // New flags (v1.3.0+)
     SEARCH: '--search', // Native web search flag (Codex CLI v0.52.0+)
     ADD_DIR: '--add-dir', // Additional writable directories (Codex CLI v0.59.0+)
+    // Session/Resume flags (v1.4.0+)
+    RESUME: 'resume', // Resume command (replaces 'exec' when resuming)
   },
   // Default values
   DEFAULTS: {
@@ -144,6 +146,9 @@ export interface ToolArguments {
   cd?: string; // --cd path
   workingDir?: string; // Alternative to cd
   changeMode?: boolean | string;
+  // Session management (v1.4.0+)
+  sessionId?: string; // Session ID for conversation continuity
+  resetSession?: boolean; // Clear session context before execution
   chunkIndex?: number | string; // Which chunk to return (1-based)
   chunkCacheKey?: string; // Optional cache key for continuation
   message?: string; // For Ping tool -- Un-used.

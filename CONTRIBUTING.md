@@ -1,6 +1,6 @@
 # Contributing to Codex MCP Tool
 
-Thank you for your interest in contributing to Codex MCP Tool! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to Codex MCP Tool! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -39,7 +39,7 @@ Please be respectful and constructive in all interactions. We aim to maintain a 
 ### Prerequisites
 
 - Node.js >= 18.0.0
-- npm >= 8.0.0
+- Yarn >= 1.22.0
 - Codex CLI installed and authenticated
 - TypeScript knowledge
 
@@ -51,16 +51,22 @@ git clone https://github.com/YOUR_USERNAME/codex-mcp-tool.git
 cd codex-mcp-tool
 
 # Install dependencies
-npm install
+yarn install
 
 # Build the project
-npm run build
+yarn build
 
 # Run locally
-npm start
+yarn start
 
 # Development mode (build + run)
-npm run dev
+yarn dev
+
+# Type checking
+yarn lint
+
+# Format code
+yarn format
 ```
 
 ### Testing with MCP Clients
@@ -69,8 +75,8 @@ npm run dev
 
 ```bash
 # Build and link local development version
-npm run build
-npm link
+yarn build
+yarn link
 
 # Add to Claude Code
 claude mcp add codex-dev --npm-package @trishchuk/codex-mcp-tool
@@ -122,10 +128,10 @@ src/
 │   └── index.ts             # Tool registration
 ├── utils/                    # Utility functions
 │   ├── codexExecutor.ts     # Codex CLI executor
+│   ├── sessionStorage.ts    # Session management
+│   ├── versionDetection.ts  # CLI version detection
+│   ├── errorTypes.ts        # Structured error handling
 │   ├── changeModeRunner.ts  # Change mode processor
-│   ├── changeModeParser.ts  # Parse OLD/NEW blocks
-│   ├── changeModeChunker.ts # Split large responses
-│   ├── chunkCache.ts        # Cache management
 │   └── logger.ts            # Logging utilities
 ├── constants.ts              # Project constants
 └── index.ts                 # Main MCP server
@@ -149,17 +155,9 @@ export const yourTool: UnifiedTool = {
   zodSchema: yourToolArgsSchema,
   prompt: {
     description: 'Tool prompt description',
-    arguments: [
-      {
-        name: 'param',
-        description: 'Parameter description',
-        required: true,
-      },
-    ],
   },
-  category: 'utility', // or 'simple'
+  category: 'utility',
   execute: async (args, onProgress) => {
-    // Implementation
     onProgress?.('Processing...');
     return 'Tool result';
   },
@@ -191,8 +189,8 @@ Follow conventional commits:
 Examples:
 
 ```
-feat: add support for GPT-5 model
-fix: handle timeout errors in ask-codex tool
+feat: add session management for multi-turn conversations
+fix: honor explicit sessionId in getOrCreateSession
 docs: update installation instructions for Windows
 ```
 
@@ -202,13 +200,16 @@ docs: update installation instructions for Windows
 
 ```bash
 # Type checking
-npm run lint
+yarn lint
 
 # Build verification
-npm run build
+yarn build
 
 # Run tests (when available)
-npm test
+yarn test
+
+# Format check
+yarn format:check
 ```
 
 ### Manual Testing Checklist
@@ -217,15 +218,12 @@ Before submitting a PR, test:
 
 - [ ] All tools work correctly with their documented parameters
 - [ ] ask-codex tool handles file references (@filename syntax)
+- [ ] Session management works with multiple sessionIds per workspace
 - [ ] changeMode returns structured OLD/NEW blocks
-- [ ] fetch-chunk retrieves cached chunks correctly
-- [ ] timeout-test shows progress notifications
-- [ ] Error handling functions properly
-- [ ] Progress notifications appear for long operations (25-second intervals)
-- [ ] Documentation builds successfully (`npm run docs:build`)
-- [ ] No TypeScript errors (`npm run lint`)
-- [ ] Tools follow the UnifiedTool interface
-- [ ] Cache keys are generated consistently
+- [ ] Error handling returns user-friendly messages
+- [ ] Progress notifications appear for long operations
+- [ ] Documentation builds successfully (`yarn docs:build`)
+- [ ] No TypeScript errors (`yarn lint`)
 
 ## Documentation
 
@@ -235,13 +233,13 @@ Documentation uses VitePress:
 
 ```bash
 # Start docs dev server
-npm run docs:dev
+yarn docs:dev
 
 # Build documentation
-npm run docs:build
+yarn docs:build
 
 # Preview built docs
-npm run docs:preview
+yarn docs:preview
 ```
 
 ### Documentation Structure
@@ -250,62 +248,26 @@ npm run docs:preview
 docs/
 ├── index.md              # Homepage
 ├── getting-started.md    # Installation & setup
-├── api/
-│   └── tools/           # Tool-specific documentation
-│       ├── ask-codex.md
-│       ├── brainstorm.md
-│       ├── fetch-chunk.md
-│       └── *.md
-├── concepts/            # Conceptual guides
-│   ├── change-mode.md   # Change mode format
-│   ├── how-it-works.md  # Architecture
-│   └── *.md
-├── examples/            # Usage examples
-│   ├── basic-usage.md
-│   ├── advanced-usage.md
-│   └── *.md
-└── resources/           # Additional resources
-    ├── faq.md
-    └── troubleshooting.md
+├── api/tools/            # Tool-specific documentation
+├── concepts/             # Conceptual guides
+├── examples/             # Usage examples
+└── resources/            # FAQ, troubleshooting
 ```
-
-### Documentation Standards
-
-- Keep tool docs updated with their zod schemas
-- Include practical examples for all features
-- Link between related documentation pages
-- Use consistent parameter formatting:
-
-  ```markdown
-  ### paramName (required/optional)
-
-  - **Type:** `string`
-  - **Description:** What this parameter does
-  - **Example:** `"example-value"`
-  ```
 
 ## Release Process
 
-Releases are automated via GitHub Actions:
-
 1. Update version in `package.json`
 2. Update `CHANGELOG.md`
-3. Commit: `git commit -m "chore: release v1.2.3"`
-4. Tag: `git tag v1.2.3`
+3. Commit: `git commit -m "chore: release v1.4.x"`
+4. Tag: `git tag v1.4.x`
 5. Push: `git push origin main --tags`
 
-The CI/CD pipeline will:
-
-- Run tests and linting
-- Build the project
-- Publish to npm as `@trishchuk/codex-mcp-tool`
-- Create GitHub release
+The CI/CD pipeline will publish to npm as `@trishchuk/codex-mcp-tool`.
 
 ## Getting Help
 
 - Check [documentation](https://x51xxx.github.io/codex-mcp-tool/)
 - Ask in [GitHub Discussions](https://github.com/x51xxx/codex-mcp-tool/discussions)
-- Join our community chat (if available)
 
 ## License
 

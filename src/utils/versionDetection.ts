@@ -23,7 +23,13 @@ export const FEATURE_VERSIONS = {
   ADD_DIR: { major: 0, minor: 59, patch: 0 }, // --add-dir flag
   WINDOWS_AGENT: { major: 0, minor: 59, patch: 0 }, // Windows agent mode
   GPT5_1_MODELS: { major: 0, minor: 56, patch: 0 }, // GPT-5.1 model family
+  RESUME: { major: 0, minor: 36, patch: 0 }, // codex resume command (v1.4.0+)
 } as const;
+
+// Version cache for performance optimization
+let cachedVersion: CodexVersion | null = null;
+let cacheTimestamp = 0;
+const VERSION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Parse version string into structured format
@@ -88,10 +94,17 @@ export function meetsMinVersion(
 }
 
 /**
- * Get installed Codex CLI version
+ * Get installed Codex CLI version (with caching)
+ * @param bypassCache If true, forces fresh version check
  * @returns Promise<CodexVersion> Version information
  */
-export async function getCodexVersion(): Promise<CodexVersion> {
+export async function getCodexVersion(bypassCache: boolean = false): Promise<CodexVersion> {
+  // Return cached version if valid
+  if (!bypassCache && cachedVersion && Date.now() - cacheTimestamp < VERSION_CACHE_TTL) {
+    Logger.debug(`Using cached Codex version: ${cachedVersion.raw}`);
+    return cachedVersion;
+  }
+
   try {
     const versionOutput = await executeCommand('codex', ['--version'], undefined, 5000);
 
@@ -112,6 +125,11 @@ export async function getCodexVersion(): Promise<CodexVersion> {
 
     const version = parseVersion(versionMatch[1]);
     Logger.log(`Detected Codex CLI version: ${version.major}.${version.minor}.${version.patch}`);
+
+    // Cache the version
+    cachedVersion = version;
+    cacheTimestamp = Date.now();
+
     return version;
   } catch (error) {
     Logger.error('Failed to get Codex CLI version:', error);
@@ -169,6 +187,22 @@ export async function supportsToolTokenLimit(): Promise<boolean> {
  */
 export async function supportsGPT51Models(): Promise<boolean> {
   return await isFeatureAvailable('GPT5_1_MODELS');
+}
+
+/**
+ * Check if native resume command is available
+ * @returns Promise<boolean> True if 'codex resume' is supported
+ */
+export async function supportsResume(): Promise<boolean> {
+  return await isFeatureAvailable('RESUME');
+}
+
+/**
+ * Clear version cache (useful for testing)
+ */
+export function clearVersionCache(): void {
+  cachedVersion = null;
+  cacheTimestamp = 0;
 }
 
 /**

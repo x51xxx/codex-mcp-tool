@@ -1,9 +1,19 @@
 import { z } from 'zod';
 import { UnifiedTool } from './registry.js';
-import { executeCodexCLI, executeCodex } from '../utils/codexExecutor.js';
+import { executeCodexCLI, executeCodex, CodexExecutionResult } from '../utils/codexExecutor.js';
 import { processChangeModeOutput } from '../utils/changeModeRunner.js';
 import { formatCodexResponseForMCP } from '../utils/outputParser.js';
 import { MODELS, APPROVAL_POLICIES, ERROR_MESSAGES } from '../constants.js';
+import { createCodexError, formatErrorForUser } from '../utils/errorTypes.js';
+import {
+  getOrCreateSession,
+  saveSession,
+  getCodexConversationId,
+  setCodexConversationId,
+  parseConversationIdFromOutput,
+  deleteSession,
+} from '../utils/sessionStorage.js';
+import { resolveWorkingDirectory } from '../utils/workingDirResolver.js';
 
 const askCodexArgsSchema = z.object({
   prompt: z
@@ -99,6 +109,15 @@ const askCodexArgsSchema = z.object({
     .max(10000)
     .optional()
     .describe('Maximum tokens for tool outputs (100-10,000). Controls response verbosity.'),
+  // Session management (v1.4.0+)
+  sessionId: z
+    .string()
+    .optional()
+    .describe('Session ID for conversation continuity. Enables native Codex resume.'),
+  resetSession: z
+    .boolean()
+    .optional()
+    .describe('Clear session context before execution. Starts fresh conversation.'),
 });
 
 export const askCodexTool: UnifiedTool = {
@@ -137,6 +156,8 @@ export const askCodexTool: UnifiedTool = {
       disableFeatures,
       addDirs,
       toolOutputTokenLimit,
+      sessionId,
+      resetSession,
     } = args;
 
     if (!prompt?.trim()) {
@@ -149,6 +170,36 @@ export const askCodexTool: UnifiedTool = {
         cacheKey: chunkCacheKey as string,
         prompt: prompt as string,
       });
+    }
+
+    // Session management (v1.4.0+)
+    let codexConversationId: string | undefined;
+    let activeSessionId: string | undefined;
+
+    if (sessionId) {
+      // Handle session reset
+      if (resetSession) {
+        deleteSession(sessionId as string);
+      } else {
+        // Try to get existing Codex conversation ID for resume
+        codexConversationId = getCodexConversationId(sessionId as string);
+      }
+      activeSessionId = sessionId as string;
+    }
+
+    // Resolve working directory for session
+    const resolvedWorkingDir = resolveWorkingDirectory({
+      workingDir: (workingDir || cd) as string,
+      prompt: prompt as string,
+    });
+
+    // Get or create session if sessionId provided
+    if (activeSessionId && resolvedWorkingDir) {
+      const session = getOrCreateSession(resolvedWorkingDir, activeSessionId);
+      activeSessionId = session.sessionId;
+      if (!codexConversationId) {
+        codexConversationId = session.codexConversationId;
+      }
     }
 
     try {
@@ -174,12 +225,32 @@ export const askCodexTool: UnifiedTool = {
           disableFeatures: disableFeatures as string[],
           addDirs: addDirs as string[],
           toolOutputTokenLimit: toolOutputTokenLimit as number,
+          codexConversationId, // Pass conversation ID for resume
         },
         onProgress
       );
 
+      // Parse and store conversation ID from response for future resume
+      // Conversation ID may be in stdout OR stderr - check both
+      if (activeSessionId) {
+        const combinedOutput = `${result.output}\n${result.stderr}`;
+        const newConversationId = parseConversationIdFromOutput(combinedOutput);
+        if (newConversationId) {
+          setCodexConversationId(activeSessionId, newConversationId);
+        }
+
+        // Update session with latest prompt/response
+        saveSession({
+          sessionId: activeSessionId,
+          lastPrompt: prompt as string,
+          lastResponse: result.output.substring(0, 1000), // Store truncated response
+          model: model as string,
+          workingDir: resolvedWorkingDir,
+        });
+      }
+
       if (changeMode) {
-        return processChangeModeOutput(result, {
+        return processChangeModeOutput(result.output, {
           chunkIndex: args.chunkIndex as number | undefined,
           prompt: prompt as string,
         });
@@ -187,66 +258,19 @@ export const askCodexTool: UnifiedTool = {
 
       // Format response with enhanced output parsing
       return formatCodexResponseForMCP(
-        result,
+        result.output,
         includeThinking as boolean,
         includeMetadata as boolean
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Use structured error handling
+      const codexError = createCodexError(error instanceof Error ? error : String(error), {
+        sessionId: activeSessionId,
+        model: model as string,
+        workingDir: resolvedWorkingDir,
+      });
 
-      // Enhanced error handling with helpful context
-      if (errorMessage.includes('not found') || errorMessage.includes('command not found')) {
-        return `❌ **Codex CLI Not Found**: ${ERROR_MESSAGES.CODEX_NOT_FOUND}
-
-**Quick Fix:**
-\`\`\`bash
-npm install -g @openai/codex
-\`\`\`
-
-**Verification:** Run \`codex --version\` to confirm installation.`;
-      }
-
-      if (errorMessage.includes('authentication') || errorMessage.includes('unauthorized')) {
-        return `❌ **Authentication Failed**: ${ERROR_MESSAGES.AUTHENTICATION_FAILED}
-
-**Setup Options:**
-1. **API Key:** \`export OPENAI_API_KEY=your-key\`
-2. **Login:** \`codex login\` (requires ChatGPT subscription)
-
-**Troubleshooting:** Verify key has Codex access in OpenAI dashboard.`;
-      }
-
-      if (errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
-        return `❌ **Usage Limit Reached**: ${ERROR_MESSAGES.QUOTA_EXCEEDED}
-
-**Solutions:**
-1. Wait and retry - rate limits reset periodically
-2. Check quota in OpenAI dashboard`;
-      }
-
-      if (errorMessage.includes('timeout')) {
-        return `❌ **Request Timeout**: Operation took longer than expected
-
-**Solutions:**
-1. Increase timeout: Add \`timeout: 300000\` (5 minutes)
-2. Simplify request: Break complex queries into smaller parts`;
-      }
-
-      if (errorMessage.includes('sandbox') || errorMessage.includes('permission')) {
-        return `❌ **Permission Error**: ${ERROR_MESSAGES.SANDBOX_VIOLATION}
-
-**Solutions:**
-1. Relax sandbox: Use \`sandboxMode: "workspace-write"\`
-2. Adjust approval: Try \`approval: "on-request"\``;
-      }
-
-      // Generic error with context
-      return `❌ **Codex Execution Error**: ${errorMessage}
-
-**Debug Steps:**
-1. Verify Codex CLI: \`codex --version\`
-2. Check authentication: \`codex login\`
-3. Try simpler query first`;
+      return `❌ ${formatErrorForUser(codexError)}`;
     }
   },
 };

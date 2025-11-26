@@ -4,6 +4,14 @@ import { CLI } from '../constants.js';
 import { CodexCommandBuilder } from './codexCommandBuilder.js';
 
 // Type-safe enums
+/**
+ * Extended result from Codex execution with stderr for conversation ID parsing
+ */
+export interface CodexExecutionResult {
+  output: string; // stdout - main response
+  stderr: string; // stderr - may contain conversation ID
+}
+
 export enum ApprovalPolicy {
   Never = 'never',
   OnRequest = 'on-request',
@@ -42,6 +50,8 @@ export interface CodexExecOptions {
   // New parameters (v1.3.0+)
   readonly addDirs?: string[]; // Additional writable directories
   readonly toolOutputTokenLimit?: number; // Max tokens for tool outputs (100-10,000)
+  // Session/Resume support (v1.4.0+)
+  readonly codexConversationId?: string; // Native Codex conversation ID for resume
 }
 
 /**
@@ -97,12 +107,13 @@ export async function executeCodexCLI(
 
 /**
  * High-level executeCodex function with comprehensive options support
+ * Returns both stdout and stderr for conversation ID parsing
  */
 export async function executeCodex(
   prompt: string,
   options?: CodexExecOptions & { [key: string]: any },
   onProgress?: (newOutput: string) => void
-): Promise<string> {
+): Promise<CodexExecutionResult> {
   const builder = new CodexCommandBuilder();
   const { args } = await builder.build(prompt, {
     ...options,
@@ -145,7 +156,11 @@ export async function executeCodex(
       throw new Error(`Codex CLI failed: ${errorMessage}`);
     }
 
-    return result.stdout;
+    // Return both stdout and stderr for conversation ID parsing
+    return {
+      output: result.stdout,
+      stderr: result.stderr,
+    };
   } catch (error) {
     Logger.error('Codex execution failed:', error);
     throw error;

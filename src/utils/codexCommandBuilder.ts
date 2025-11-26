@@ -6,6 +6,7 @@ import {
   supportsNativeSearch,
   supportsAddDir,
   supportsToolTokenLimit,
+  supportsResume,
 } from './versionDetection.js';
 import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
@@ -36,6 +37,8 @@ export interface CodexCommandBuilderOptions {
   readonly useExec?: boolean;
   readonly concisePrompt?: boolean;
   readonly useStdinForLongPrompts?: boolean;
+  // Session/Resume support (v1.4.0+)
+  readonly codexConversationId?: string; // Native Codex conversation ID for resume
 }
 
 /**
@@ -45,6 +48,7 @@ export interface BuildResult {
   args: string[];
   tempFile?: string;
   finalPrompt: string;
+  useResume: boolean; // Whether resume command is being used
 }
 
 /**
@@ -53,6 +57,7 @@ export interface BuildResult {
  */
 export class CodexCommandBuilder {
   private args: string[] = [];
+  private useResumeMode: boolean = false;
 
   /**
    * Build a complete Codex CLI command with all options
@@ -62,38 +67,42 @@ export class CodexCommandBuilder {
    */
   async build(prompt: string, options?: CodexCommandBuilderOptions): Promise<BuildResult> {
     this.args = []; // Reset args for fresh build
+    this.useResumeMode = false;
 
     // 1. Validation
     this.validateOptions(options);
 
-    // 2. Model selection with fallback
+    // 2. Check if we should use resume mode
+    await this.checkResumeMode(options);
+
+    // 3. Model selection with fallback
     await this.addModelArg(options?.model);
 
-    // 3. Safety controls (yolo, fullAuto, approval, sandbox)
+    // 4. Safety controls (yolo, fullAuto, approval, sandbox)
     this.addSafetyArgs(options);
 
-    // 4. Working directory
+    // 5. Working directory
     this.addWorkingDir(options, prompt);
 
-    // 5. OSS mode
+    // 6. OSS mode
     if (options?.oss) {
       this.args.push(CLI.FLAGS.OSS);
     }
 
-    // 6. Search + Feature flags (shared 69-line logic)
+    // 7. Search + Feature flags (shared 69-line logic)
     await this.addSearchAndFeatures(options);
 
-    // 7. Disable features
+    // 8. Disable features
     if (options?.disableFeatures && Array.isArray(options.disableFeatures)) {
       for (const feature of options.disableFeatures) {
         this.args.push(CLI.FLAGS.DISABLE, feature);
       }
     }
 
-    // 8. Advanced features (addDirs + tokenLimit)
+    // 9. Advanced features (addDirs + tokenLimit)
     await this.addAdvancedFeatures(options);
 
-    // 9. Configuration
+    // 10. Configuration
     if (options?.config) {
       if (typeof options.config === 'string') {
         this.args.push(CLI.FLAGS.CONFIG, options.config);
@@ -105,12 +114,12 @@ export class CodexCommandBuilder {
       }
     }
 
-    // 10. Profile
+    // 11. Profile
     if (options?.profile) {
       this.args.push(CLI.FLAGS.PROFILE, options.profile);
     }
 
-    // 11. Images
+    // 12. Images
     if (options?.image) {
       const images = Array.isArray(options.image) ? options.image : [options.image];
       for (const img of images) {
@@ -118,13 +127,35 @@ export class CodexCommandBuilder {
       }
     }
 
-    // 12. Exec mode
-    if (options?.useExec !== false) {
+    // 13. Command mode (exec or exec resume)
+    if (this.useResumeMode && options?.codexConversationId) {
+      // Use "exec resume <session_id>" for non-interactive resume
+      this.args.push('exec', CLI.FLAGS.RESUME, options.codexConversationId);
+      Logger.debug(`Using exec resume mode with conversation ID: ${options.codexConversationId}`);
+    } else if (options?.useExec !== false) {
+      // Default to exec mode
       this.args.push('exec');
     }
 
-    // 13. Handle prompt (concise mode, stdin for large prompts)
+    // 14. Handle prompt (concise mode, stdin for large prompts)
     return this.handlePrompt(prompt, options);
+  }
+
+  /**
+   * Check if resume mode should be used
+   */
+  private async checkResumeMode(options?: CodexCommandBuilderOptions): Promise<void> {
+    if (options?.codexConversationId) {
+      const resumeSupported = await supportsResume();
+      if (resumeSupported) {
+        this.useResumeMode = true;
+        Logger.debug('Resume mode enabled (Codex CLI v0.36.0+)');
+      } else {
+        Logger.warn(
+          'Resume mode requested but not supported (requires Codex CLI v0.36.0+). Falling back to exec mode.'
+        );
+      }
+    }
   }
 
   /**
@@ -316,6 +347,7 @@ export class CodexCommandBuilder {
       args: this.args,
       tempFile,
       finalPrompt,
+      useResume: this.useResumeMode,
     };
   }
 
