@@ -42,9 +42,9 @@ The `brainstorm` tool leverages AI models to generate creative solutions using v
 #### model (optional)
 
 - **Type:** `string`
-- **Default:** Codex default model
-- **Options:** `"gpt-5"`, `"o3"`, `"o4-mini"`
-- **Recommendation:** Use GPT-5 for creative tasks
+- **Default:** `gpt-5.1-codex-max`
+- **Options:** `"gpt-5.1-codex-max"`, `"gpt-5.1-codex"`, `"gpt-5.1-codex-mini"`, `"gpt-5.1"`
+- **Recommendation:** Use gpt-5.1-codex-max for creative tasks
 
 #### methodology (optional)
 

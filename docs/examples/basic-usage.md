@@ -68,7 +68,7 @@ First, verify the tool is working:
   "name": "ask-codex",
   "arguments": {
     "prompt": "create comprehensive unit tests for @src/utils/calculator.ts",
-    "model": "gpt-5",
+    "model": "gpt-5.1-codex",
     "sandboxMode": "workspace-write"
   }
 }
@@ -93,7 +93,7 @@ First, verify the tool is working:
   "name": "ask-codex",
   "arguments": {
     "prompt": "add error handling and retry logic to @src/services/api-client.ts",
-    "model": "gpt-5",
+    "model": "gpt-5.1-codex",
     "sandboxMode": "workspace-write",
     "approvalPolicy": "on-request"
   }
@@ -109,7 +109,7 @@ First, verify the tool is working:
   "name": "ask-codex",
   "arguments": {
     "prompt": "audit @src/ for OWASP top 10 vulnerabilities and security best practices",
-    "model": "gpt-5",
+    "model": "gpt-5.1-codex-max",
     "sandboxMode": "read-only"
   }
 }
@@ -134,7 +134,7 @@ First, verify the tool is working:
   "name": "ask-codex",
   "arguments": {
     "prompt": "review @src/components/ for React best practices and anti-patterns",
-    "model": "o3"
+    "model": "gpt-5.1-codex"
   }
 }
 ```
@@ -162,7 +162,7 @@ First, verify the tool is working:
   "arguments": {
     "prompt": "extract reusable components from @src/pages/dashboard.tsx",
     "changeMode": true,
-    "model": "gpt-5"
+    "model": "gpt-5.1-codex-max"
   }
 }
 ```
@@ -233,7 +233,7 @@ First, verify the tool is working:
   "name": "ask-codex",
   "arguments": {
     "prompt": "find the bug causing null pointer exception in @src/auth/login.ts",
-    "model": "o3"
+    "model": "gpt-5.1-codex-max"
   }
 }
 ```
@@ -281,7 +281,7 @@ First, verify the tool is working:
   "name": "ask-codex",
   "arguments": {
     "prompt": "create a comprehensive README.md based on @package.json @src/",
-    "model": "gpt-5"
+    "model": "gpt-5.1-codex"
   }
 }
 ```
@@ -308,7 +308,7 @@ First, verify the tool is working:
   "arguments": {
     "prompt": "migrate @src/components/ from React class components to functional components with hooks",
     "changeMode": true,
-    "model": "gpt-5",
+    "model": "gpt-5.1-codex-max",
     "approvalPolicy": "on-request"
   }
 }
@@ -335,7 +335,7 @@ First, verify the tool is working:
   "arguments": {
     "prompt": "convert @src/utils/*.js to TypeScript with proper type definitions",
     "changeMode": true,
-    "model": "gpt-5"
+    "model": "gpt-5.1-codex-max"
   }
 }
 ```
@@ -350,7 +350,7 @@ First, verify the tool is working:
   "name": "ask-codex",
   "arguments": {
     "prompt": "analyze @src/modules/auth/",
-    "model": "o4-mini"
+    "model": "gpt-5.1-codex-mini"
   }
 }
 
@@ -359,7 +359,7 @@ First, verify the tool is working:
   "name": "ask-codex",
   "arguments": {
     "prompt": "analyze @src/modules/payments/",
-    "model": "o4-mini"
+    "model": "gpt-5.1-codex-mini"
   }
 }
 ```
@@ -482,9 +482,9 @@ Begin with single files or small directories before processing entire codebases.
 
 ### 2. Use Appropriate Models
 
-- **o4-mini**: Quick analysis, simple tasks
-- **o3**: Complex reasoning, detailed reviews
-- **gpt-5**: Large refactoring, comprehensive generation
+- **gpt-5.1-codex-mini**: Quick analysis, simple tasks
+- **gpt-5.1-codex**: Standard coding tasks
+- **gpt-5.1-codex-max**: Complex refactoring, comprehensive generation
 
 ### 3. Leverage Change Mode
 

@@ -63,7 +63,7 @@ GLOBAL OPTIONS:
 EXAMPLES:
   codex exec "explain this code"
   codex exec "refactor @file.ts"
-  codex --model gpt-5 exec "complex task"
+  codex --model gpt-5.1-codex-max exec "complex task"
 ```
 
 ## Use Cases
@@ -81,7 +81,7 @@ Discover what Codex CLI can do:
   "name": "ask-codex",
   "arguments": {
     "prompt": "use the feature I just learned about",
-    "model": "gpt-5"
+    "model": "gpt-5.1-codex-max"
   }
 }
 ```
@@ -112,9 +112,10 @@ When unsure about syntax:
 
 Help output includes available models:
 
-- GPT-5 (400K context)
-- o3 (200K context)
-- o4-mini (200K context, fast)
+- gpt-5.1-codex-max (default, highest reliability)
+- gpt-5.1-codex (optimized for codex)
+- gpt-5.1-codex-mini (fast, cost-effective)
+- gpt-5.1 (general reasoning)
 
 ## Integration with Other Tools
 
@@ -132,7 +133,7 @@ Help output includes available models:
   "name": "ask-codex",
   "arguments": {
     "prompt": "analyze @src/",
-    "model": "o4-mini",
+    "model": "gpt-5.1-codex-mini",
     "sandboxMode": "read-only"
   }
 }

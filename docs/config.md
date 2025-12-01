@@ -2,12 +2,12 @@
 
 Codex supports several mechanisms for setting config values:
 
-- Config-specific command-line flags, such as `--model o3` (highest precedence).
-- A generic `-c`/`--config` flag that takes a `key=value` pair, such as `--config model="o3"`.
+- Config-specific command-line flags, such as `--model gpt-5.1-codex-max` (highest precedence).
+- A generic `-c`/`--config` flag that takes a `key=value` pair, such as `--config model="gpt-5.1-codex-max"`.
   - The key can contain dots to set a value deeper than the root, e.g. `--config model_providers.openai.wire_api="chat"`.
   - Values can contain objects, such as `--config shell_environment_policy.include_only=["PATH", "HOME", "USER"]`.
   - For consistency with `config.toml`, values are in TOML format rather than JSON format, so use `{a = 1, b = 2}` rather than `{"a": 1, "b": 2}`.
-  - If `value` cannot be parsed as a valid TOML value, it is treated as a string value. This means that both `-c model="o3"` and `-c model=o3` are equivalent.
+  - If `value` cannot be parsed as a valid TOML value, it is treated as a string value. This means that both `-c model="gpt-5.1-codex"` and `-c model=gpt-5.1-codex` are equivalent.
 - The `$CODEX_HOME/config.toml` configuration file where the `CODEX_HOME` environment value defaults to `~/.codex`. (Note `CODEX_HOME` will also be where logs and other Codex-related information are stored.)
 
 Both the `--config` flag and the `config.toml` file support the following options:
@@ -17,7 +17,7 @@ Both the `--config` flag and the `config.toml` file support the following option
 The model that Codex should use.
 
 ```toml
-model = "o3"  # overrides the default of "gpt-5"
+model = "gpt-5.1-codex"  # overrides the default of "gpt-5.1-codex-max"
 ```
 
 ## model_providers
@@ -179,12 +179,12 @@ want to use at runtime via the `--profile` flag.
 Here is an example of a `config.toml` that defines multiple profiles:
 
 ```toml
-model = "o3"
+model = "gpt-5.1-codex-max"
 approval_policy = "untrusted"
 
-# Setting `profile` is equivalent to specifying `--profile o3` on the command
+# Setting `profile` is equivalent to specifying `--profile codex` on the command
 # line, though the `--profile` flag can still be used to override this value.
-profile = "o3"
+profile = "codex"
 
 [model_providers.openai-chat-completions]
 name = "OpenAI using Chat Completions"
@@ -192,33 +192,29 @@ base_url = "https://api.openai.com/v1"
 env_key = "OPENAI_API_KEY"
 wire_api = "chat"
 
-[profiles.o3]
-model = "o3"
+[profiles.codex]
+model = "gpt-5.1-codex-max"
 model_provider = "openai"
 approval_policy = "never"
 model_reasoning_effort = "high"
 model_reasoning_summary = "detailed"
 
-[profiles.gpt3]
-model = "gpt-3.5-turbo"
-model_provider = "openai-chat-completions"
-
-[profiles.zdr]
-model = "o3"
+[profiles.codex-mini]
+model = "gpt-5.1-codex-mini"
 model_provider = "openai"
 approval_policy = "on-failure"
 ```
 
 Users can specify config values at multiple levels. Order of precedence is as follows:
 
-1. custom command-line argument, e.g., `--model o3`
+1. custom command-line argument, e.g., `--model gpt-5.1-codex-max`
 2. as part of a profile, where the `--profile` is specified via a CLI (or in the config file itself)
-3. as an entry in `config.toml`, e.g., `model = "o3"`
-4. the default value that comes with Codex CLI (i.e., Codex CLI defaults to `gpt-5`)
+3. as an entry in `config.toml`, e.g., `model = "gpt-5.1-codex-max"`
+4. the default value that comes with Codex CLI (i.e., Codex CLI defaults to `gpt-5.1-codex-max`)
 
 ## model_reasoning_effort
 
-If the selected model is known to support reasoning (for example: `o3`, `o4-mini`, `codex-*`, `gpt-5`), reasoning is enabled by default when using the Responses API. As explained in the [OpenAI Platform documentation](https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning), this can be set to:
+If the selected model is known to support reasoning (for example: `gpt-5.1-codex-*`), reasoning is enabled by default when using the Responses API. As explained in the [OpenAI Platform documentation](https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning), this can be set to:
 
 - `"minimal"`
 - `"low"`
@@ -229,7 +225,7 @@ Note: to minimize reasoning, choose `"minimal"`.
 
 ## model_reasoning_summary
 
-If the model name starts with `"o"` (as in `"o3"` or `"o4-mini"`) or `"codex"`, reasoning is enabled by default when using the Responses API. As explained in the [OpenAI Platform documentation](https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries), this can be set to:
+If the model name starts with `"gpt-5.1-codex"`, reasoning is enabled by default when using the Responses API. As explained in the [OpenAI Platform documentation](https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries), this can be set to:
 
 - `"auto"` (default)
 - `"concise"`
@@ -254,7 +250,7 @@ When set, Codex includes a `text` object in the request payload with the configu
 Example:
 
 ```toml
-model = "gpt-5"
+model = "gpt-5.1-codex-max"
 model_verbosity = "low"
 ```
 
@@ -557,7 +553,7 @@ Options that are specific to the TUI.
 
 | Key                                              | Type / Values                                                     | Notes                                                                   |
 | ------------------------------------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `model`                                          | string                                                            | Model to use (e.g., `gpt-5`).                                           |
+| `model`                                          | string                                                            | Model to use (e.g., `gpt-5.1-codex-max`).                               |
 | `model_provider`                                 | string                                                            | Provider id from `model_providers` (default: `openai`).                 |
 | `model_context_window`                           | number                                                            | Context window tokens.                                                  |
 | `model_max_output_tokens`                        | number                                                            | Max output tokens.                                                      |

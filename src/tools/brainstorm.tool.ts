@@ -107,9 +107,7 @@ const brainstormArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe(
-      'Model: gpt-5-codex (default), gpt-5, o3, o4-mini, codex-1, codex-mini-latest, gpt-4.1'
-    ),
+    .describe('Model: gpt-5.1-codex-max (default), gpt-5.1-codex, gpt-5.1-codex-mini, gpt-5.1'),
   approvalPolicy: z
     .enum(['never', 'on-request', 'on-failure', 'untrusted'])
     .optional()

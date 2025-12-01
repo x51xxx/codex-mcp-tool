@@ -30,8 +30,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
  */
 const DEFAULT_MODEL_FALLBACK: string[] = [
   MODELS.GPT5_1_CODEX_MAX, // Highest priority: Latest frontier model
-  MODELS.GPT5_CODEX, // Fallback: Previous default
-  MODELS.GPT5, // Ultimate fallback: Base GPT-5
+  MODELS.GPT5_1_CODEX, // Fallback: Optimized for codex
+  MODELS.GPT5_1, // Ultimate fallback: General purpose
 ];
 
 /**
@@ -129,8 +129,8 @@ export async function getDefaultModel(): Promise<string> {
   }
 
   // Ultimate fallback if all checks fail
-  Logger.warn(`All default models unavailable, falling back to ${MODELS.GPT5_CODEX}`);
-  return MODELS.GPT5_CODEX;
+  Logger.warn(`All default models unavailable, falling back to ${MODELS.GPT5_1_CODEX}`);
+  return MODELS.GPT5_1_CODEX;
 }
 
 /**

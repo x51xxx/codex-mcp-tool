@@ -33,8 +33,8 @@ assignees: ''
 ## Model Considerations
 <!-- Would this feature require specific models? -->
 - [ ] Works with all models
-- [ ] Requires GPT-5
-- [ ] Requires o3/o4-mini
+- [ ] Requires gpt-5.1-codex-max
+- [ ] Requires gpt-5.1-codex or gpt-5.1-codex-mini
 - [ ] Model-specific feature
 
 ## Example Implementation

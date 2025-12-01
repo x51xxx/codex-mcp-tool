@@ -174,7 +174,7 @@ Use specific models for different tasks:
 ```javascript
 {
   "prompt": "@src/algorithm.ts optimize this complex algorithm",
-  "model": "gpt-5"  // Use GPT-5 for complex reasoning
+  "model": "gpt-5.1-codex-max"  // Use for complex reasoning
 }
 ```
 
@@ -202,7 +202,7 @@ Get structured edits:
 ### Performance Optimization
 
 1. **Start broad, then narrow**: Begin with directory overviews, then focus on specific files
-2. **Use appropriate models**: GPT-5 for complex analysis, o4-mini for quick reviews
+2. **Use appropriate models**: gpt-5.1-codex-max for complex analysis, gpt-5.1-codex-mini for quick reviews
 3. **Batch related files**: Include all relevant context in one prompt rather than multiple queries
 
 ### Common Patterns

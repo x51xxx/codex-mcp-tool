@@ -50,47 +50,46 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 
 ```javascript
 // File analysis
-'explain the architecture of @src/'
-'analyze @package.json and list dependencies'
+'explain the architecture of @src/';
+'analyze @package.json and list dependencies';
 
 // With specific model
-'use codex with model o3 to analyze @algorithm.py'
+'use codex with model gpt-5.1-codex to analyze @algorithm.py';
 
 // Multi-turn conversations (v1.4.0+)
-'ask codex sessionId:"my-project" prompt:"explain @src/"'
-'ask codex sessionId:"my-project" prompt:"now add error handling"'
+'ask codex sessionId:"my-project" prompt:"explain @src/"';
+'ask codex sessionId:"my-project" prompt:"now add error handling"';
 
 // Brainstorming
-'brainstorm ways to optimize CI/CD using SCAMPER method'
+'brainstorm ways to optimize CI/CD using SCAMPER method';
 
 // Sandbox mode
-'use codex sandbox:true to create and run a Python script'
+'use codex sandbox:true to create and run a Python script';
 
 // Web search
-'ask codex search:true prompt:"latest TypeScript 5.7 features"'
+'ask codex search:true prompt:"latest TypeScript 5.7 features"';
 ```
 
 ## Tools
 
-| Tool | Description |
-|------|-------------|
-| `ask-codex` | Execute Codex CLI with file analysis, models, sessions |
-| `brainstorm` | Generate ideas with SCAMPER, design-thinking, etc. |
-| `list-sessions` | View/delete/clear conversation sessions |
-| `health` | Diagnose CLI installation, version, features |
-| `ping` / `help` | Test connection, show CLI help |
+| Tool            | Description                                            |
+| --------------- | ------------------------------------------------------ |
+| `ask-codex`     | Execute Codex CLI with file analysis, models, sessions |
+| `brainstorm`    | Generate ideas with SCAMPER, design-thinking, etc.     |
+| `list-sessions` | View/delete/clear conversation sessions                |
+| `health`        | Diagnose CLI installation, version, features           |
+| `ping` / `help` | Test connection, show CLI help                         |
 
 ## Models
 
-Default: `gpt-5.1-codex-max` with fallback → `gpt-5-codex` → `gpt-5`
+Default: `gpt-5.1-codex-max` with fallback → `gpt-5.1-codex` → `gpt-5.1`
 
-| Model | Use Case |
-|-------|----------|
-| `gpt-5.1-codex-max` | Complex multi-file edits (default) |
-| `gpt-5.1-codex-mini` | Cost-efficient quick tasks |
-| `o3` | Deep reasoning |
-| `o4-mini` | Fast & efficient |
-| `codex-1` | Software engineering |
+| Model                | Use Case                           |
+| -------------------- | ---------------------------------- |
+| `gpt-5.1-codex-max`  | Complex multi-file edits (default) |
+| `gpt-5.1-codex`      | Optimized for codex                |
+| `gpt-5.1-codex-mini` | Cost-efficient quick tasks         |
+| `gpt-5.1`            | General reasoning                  |
 
 ## Key Features
 
@@ -105,28 +104,29 @@ Multi-turn conversations with workspace isolation:
 ```
 
 **Environment:**
+
 - `CODEX_SESSION_TTL_MS` - Session TTL (default: 24h)
 - `CODEX_MAX_SESSIONS` - Max sessions (default: 50)
 
 ### Advanced Options
 
-| Parameter | Description |
-|-----------|-------------|
-| `model` | Model selection |
-| `sessionId` | Enable conversation continuity |
-| `sandbox` | Enable `--full-auto` mode |
-| `search` | Enable web search |
-| `changeMode` | Structured OLD/NEW edits |
-| `addDirs` | Additional writable directories |
+| Parameter              | Description                         |
+| ---------------------- | ----------------------------------- |
+| `model`                | Model selection                     |
+| `sessionId`            | Enable conversation continuity      |
+| `sandbox`              | Enable `--full-auto` mode           |
+| `search`               | Enable web search                   |
+| `changeMode`           | Structured OLD/NEW edits            |
+| `addDirs`              | Additional writable directories     |
 | `toolOutputTokenLimit` | Cap response verbosity (100-10,000) |
 
 ## CLI Compatibility
 
-| Version | Features |
-|---------|----------|
+| Version  | Features                                |
+| -------- | --------------------------------------- |
 | v0.59.0+ | `--add-dir`, token limits, full GPT-5.1 |
-| v0.52.0+ | Native `--search` flag |
-| v0.36.0+ | Native `codex resume` (sessions) |
+| v0.52.0+ | Native `--search` flag                  |
+| v0.36.0+ | Native `codex resume` (sessions)        |
 
 ## Troubleshooting
 

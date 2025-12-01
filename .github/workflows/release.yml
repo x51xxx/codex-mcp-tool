@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
+          cache: 'yarn'
       
       - name: Verify package name
         run: |
@@ -41,7 +41,7 @@ jobs:
           fi
       
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
       
       - name: Run tests and build
         run: |

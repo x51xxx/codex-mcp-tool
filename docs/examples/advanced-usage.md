@@ -14,7 +14,7 @@ When analyzing large codebases, break down the analysis into manageable chunks:
   "name": "ask-codex",
   "arguments": {
     "prompt": "provide high-level architecture overview of @src/",
-    "model": "o4-mini"
+    "model": "gpt-5.1-codex-mini"
   }
 }
 
@@ -23,7 +23,7 @@ When analyzing large codebases, break down the analysis into manageable chunks:
   "name": "ask-codex",
   "arguments": {
     "prompt": "analyze @src/core/ in detail",
-    "model": "gpt-5"
+    "model": "gpt-5.1-codex"
   }
 }
 
@@ -32,7 +32,7 @@ When analyzing large codebases, break down the analysis into manageable chunks:
   "name": "ask-codex",
   "arguments": {
     "prompt": "map dependencies between @src/core/ and @src/utils/",
-    "model": "o3"
+    "model": "gpt-5.1-codex-max"
   }
 }
 ```
@@ -48,7 +48,7 @@ For very large files or directories:
   "arguments": {
     "prompt": "refactor all TypeScript files in @src/",
     "changeMode": true,
-    "model": "gpt-5"
+    "model": "gpt-5.1-codex-max"
   }
 }
 
@@ -217,7 +217,7 @@ jobs:
               "name": "ask-codex",
               "arguments": {
                 "prompt": "security audit @src/",
-                "model": "gpt-5",
+                "model": "gpt-5.1-codex-max",
                 "sandboxMode": "read-only"
               }
             }
@@ -231,7 +231,7 @@ jobs:
               "name": "ask-codex",
               "arguments": {
                 "prompt": "identify performance bottlenecks @src/",
-                "model": "o3"
+                "model": "gpt-5.1-codex"
               }
             }
           }' | npx @trishchuk/codex-mcp-tool
@@ -247,7 +247,7 @@ const weeklyReview = async () => {
   // Identify technical debt
   const debt = await mcp.call('ask-codex', {
     prompt: 'identify technical debt in @src/',
-    model: 'gpt-5',
+    model: 'gpt-5.1-codex-max',
   });
 
   // Generate improvement plan
@@ -272,16 +272,16 @@ Choose the right model for the task:
 const selectModel = task => {
   switch (task.type) {
     case 'quick-analysis':
-      return 'o4-mini'; // Fast, cost-effective
+      return 'gpt-5.1-codex-mini'; // Fast, cost-effective
 
     case 'complex-reasoning':
-      return 'o3'; // Advanced reasoning
+      return 'gpt-5.1-codex'; // Advanced reasoning
 
     case 'large-refactoring':
-      return 'gpt-5'; // Maximum context
+      return 'gpt-5.1-codex-max'; // Maximum context
 
     default:
-      return 'o4-mini';
+      return 'gpt-5.1-codex-mini';
   }
 };
 
@@ -305,7 +305,7 @@ const analyses = await Promise.all(
   modules.map(module =>
     mcp.call('ask-codex', {
       prompt: `analyze @src/${module}/`,
-      model: 'o4-mini',
+      model: 'gpt-5.1-codex-mini',
     })
   )
 );
@@ -314,7 +314,7 @@ const analyses = await Promise.all(
 const summary = await mcp.call('ask-codex', {
   prompt: 'synthesize module analyses into system overview',
   existingContext: analyses.join('\n'),
-  model: 'gpt-5',
+  model: 'gpt-5.1-codex-max',
 });
 ```
 
@@ -345,7 +345,7 @@ class CodexWorkflow {
   async review(path) {
     return mcp.call('ask-codex', {
       prompt: `comprehensive review of @${path}`,
-      model: 'gpt-5',
+      model: 'gpt-5.1-codex-max',
       sandboxMode: 'read-only',
     });
   }
@@ -396,7 +396,7 @@ Implement security-focused reviews:
       - Security misconfigurations
       - Using components with known vulnerabilities
       - Insufficient logging and monitoring`,
-    "model": "gpt-5",
+    "model": "gpt-5.1-codex-max",
     "sandboxMode": "read-only"
   }
 }
@@ -411,7 +411,7 @@ Ensure code meets compliance requirements:
   "name": "ask-codex",
   "arguments": {
     "prompt": "verify @src/ compliance with GDPR, HIPAA, and SOC 2",
-    "model": "gpt-5",
+    "model": "gpt-5.1-codex-max",
     "sandboxMode": "read-only"
   }
 }
@@ -429,7 +429,7 @@ const reproduce = {
   name: 'ask-codex',
   arguments: {
     prompt: 'trace execution path for [error scenario] in @src/',
-    model: 'o3',
+    model: 'gpt-5.1-codex',
   },
 };
 
@@ -438,7 +438,7 @@ const rootCause = {
   name: 'ask-codex',
   arguments: {
     prompt: 'identify root cause of [error] based on trace',
-    model: 'gpt-5',
+    model: 'gpt-5.1-codex-max',
   },
 };
 

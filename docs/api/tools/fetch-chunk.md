@@ -97,7 +97,7 @@ const initial = {
   arguments: {
     prompt: 'convert @src/**/*.js to TypeScript',
     changeMode: true,
-    model: 'gpt-5',
+    model: 'gpt-5.1-codex-max',
   },
 };
 // Returns: { cacheKey: "ts-convert-xyz", totalChunks: 8, ... }

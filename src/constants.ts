@@ -24,23 +24,12 @@ export const STATUS_MESSAGES = {
   PROCESSING_COMPLETE: '✅ Analysis completed successfully',
 } as const;
 
-// Models
+// Models (Available in Codex CLI)
 export const MODELS = {
-  // GPT-5.1 Series (Latest - 2025)
-  GPT5_1_CODEX_MAX: 'gpt-5.1-codex-max', // Default (v1.3.0+): Frontier agentic coding with highest reliability
-  GPT5_1_CODEX_MINI: 'gpt-5.1-codex-mini', // Cost-efficient compact model
-  GPT5_1: 'gpt-5.1', // General purpose GPT-5.1
-  GPT5_1_MINI: 'gpt-5.1-mini', // Balanced performance
-  GPT5_1_NANO: 'gpt-5.1-nano', // Fastest for simple queries
-  // GPT-5 Series (Legacy)
-  GPT5_CODEX: 'gpt-5-codex', // Previous default
-  GPT5: 'gpt-5',
-  // Other Models
-  O3: 'o3',
-  O4_MINI: 'o4-mini',
-  CODEX_1: 'codex-1',
-  CODEX_MINI_LATEST: 'codex-mini-latest',
-  GPT_4_1: 'gpt-4.1',
+  GPT5_1_CODEX_MAX: 'gpt-5.1-codex-max', // Default: Frontier agentic coding with highest reliability
+  GPT5_1_CODEX: 'gpt-5.1-codex', // Optimized for codex
+  GPT5_1_CODEX_MINI: 'gpt-5.1-codex-mini', // Cost-efficient, faster, but less capable
+  GPT5_1: 'gpt-5.1', // Broad world knowledge with strong general reasoning
 } as const;
 
 // Sandbox modes

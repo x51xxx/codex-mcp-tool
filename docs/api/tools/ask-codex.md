@@ -37,9 +37,9 @@ The `ask-codex` tool provides non-interactive execution of Codex commands, suppo
 ### model (optional)
 
 - **Type:** `string`
-- **Default:** Codex CLI default (usually gpt-5)
-- **Options:** `"gpt-5"`, `"o3"`, `"o4-mini"`
-- **Example:** `"model": "o4-mini"`
+- **Default:** `gpt-5.1-codex-max`
+- **Options:** `"gpt-5.1-codex-max"`, `"gpt-5.1-codex"`, `"gpt-5.1-codex-mini"`, `"gpt-5.1"`
+- **Example:** `"model": "gpt-5.1-codex-mini"`
 
 ### sandbox (optional)
 
@@ -152,7 +152,7 @@ Include files in your prompts using the @ symbol:
   "name": "ask-codex",
   "arguments": {
     "prompt": "create unit tests for @src/utils/calculator.ts",
-    "model": "gpt-5",
+    "model": "gpt-5.1-codex",
     "sandboxMode": "workspace-write"
   }
 }
@@ -178,7 +178,7 @@ Include files in your prompts using the @ symbol:
   "name": "ask-codex",
   "arguments": {
     "prompt": "audit @src/ for security vulnerabilities",
-    "model": "gpt-5",
+    "model": "gpt-5.1-codex-max",
     "sandboxMode": "read-only"
   }
 }
@@ -303,9 +303,9 @@ Be precise to improve performance:
 
 Match model to task complexity:
 
-- **o4-mini**: Quick tasks, simple queries
-- **o3**: Complex reasoning, detailed analysis
-- **gpt-5**: Large context, comprehensive refactoring
+- **gpt-5.1-codex-mini**: Quick tasks, simple queries
+- **gpt-5.1-codex**: Standard coding tasks
+- **gpt-5.1-codex-max**: Complex multi-file refactoring
 
 ### 4. Enable Change Mode for Edits
 
@@ -353,7 +353,7 @@ For consistent file resolution:
 /codex-cli:ask-codex analyze @src/
 
 # With options
-/codex-cli:ask-codex --model o4-mini review @src/api/
+/codex-cli:ask-codex --model gpt-5.1-codex-mini review @src/api/
 ```
 
 ### In Automation Scripts
@@ -369,7 +369,7 @@ const result = execSync('npx @trishchuk/codex-mcp-tool', {
       name: 'ask-codex',
       arguments: {
         prompt: 'analyze @src/',
-        model: 'o4-mini',
+        model: 'gpt-5.1-codex-mini',
       },
     },
   }),

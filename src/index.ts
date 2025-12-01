@@ -32,7 +32,7 @@ import {
 const server = new Server(
   {
     name: 'codex-cli-mcp',
-    version: '1.4.0',
+    version: '1.4.1',
   },
   {
     capabilities: {

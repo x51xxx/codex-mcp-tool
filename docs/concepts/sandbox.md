@@ -288,7 +288,7 @@ codex --sandbox read-only --ask-for-approval never
 codex --sandbox workspace-write --ask-for-approval on-request
 
 # Emergency fixes
-codex --full-auto --model o3
+codex --full-auto --model gpt-5.1-codex-max.1-codex
 ```
 
 ### 4. Set Working Directory
@@ -318,7 +318,7 @@ Or with MCP:
 [profiles.dev]
 sandbox = "workspace-write"
 ask_for_approval = "on-failure"
-model = "o4-mini"
+model = "gpt-5.1-codex-mini"
 ```
 
 ### CI/CD Pipeline
@@ -338,7 +338,7 @@ model = "o4-mini"
 # Careful mode with human oversight
 codex --sandbox workspace-write \
       --ask-for-approval untrusted \
-      --model gpt-5 \
+      --model gpt-5.1-codex-max \
       "fix critical bug in @src/payment.ts"
 ```
 

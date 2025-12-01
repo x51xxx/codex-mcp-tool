@@ -21,9 +21,10 @@ Codex MCP Tool is a Model Context Protocol (MCP) server that bridges OpenAI's Co
 
 Currently supported OpenAI models:
 
-- **GPT-5** - 400K context, best for complex tasks
-- **o3** - 200K context, advanced reasoning
-- **o4-mini** - 200K context, fast and cost-effective
+- **gpt-5.1-codex-max** - Default, highest reliability for coding
+- **gpt-5.1-codex** - Optimized for codex
+- **gpt-5.1-codex-mini** - Fast and cost-effective
+- **gpt-5.1** - General reasoning
 
 ### Is this an official OpenAI tool?
 
@@ -115,7 +116,7 @@ Specify the model in your request:
   "name": "ask-codex",
   "arguments": {
     "prompt": "your task",
-    "model": "gpt-5"  // or "o3", "o4-mini"
+    "model": "gpt-5.1-codex-max"  // or "gpt-5.1-codex", "gpt-5.1-codex-mini"
   }
 }
 ```
@@ -258,7 +259,7 @@ DEBUG=codex-mcp:* npx @trishchuk/codex-mcp-tool
 
 1. Check available models: `codex models list`
 2. Verify API access permissions
-3. Try a different model (e.g., `o4-mini`)
+3. Try a different model (e.g., `gpt-5.1-codex-mini`)
 4. Check OpenAI account status
 
 ### How do I report bugs?
@@ -292,11 +293,12 @@ See our [Contributing Guide](https://github.com/x51xxx/codex-mcp-tool/blob/main/
 3. Make your changes
 4. Submit a pull request
 
-### What's the difference between Codex and GPT models?
+### What's the difference between Codex models?
 
-- **Codex** - Specialized for code generation (deprecated)
-- **GPT-5** - General purpose with code capabilities
-- **o3/o4** - Optimized models with reasoning focus
+- **gpt-5.1-codex-max** - Most capable, highest reliability for coding
+- **gpt-5.1-codex** - Optimized for codex tasks
+- **gpt-5.1-codex-mini** - Faster and more cost-effective
+- **gpt-5.1** - General purpose with broad reasoning capabilities
 
 ### Can I use this with other AI providers?
 
@@ -310,18 +312,19 @@ Currently, Codex MCP Tool is designed for OpenAI's models via Codex CLI. For oth
 
 ### How can I improve response times?
 
-1. **Use faster models:** `o4-mini` is fastest
+1. **Use faster models:** `gpt-5.1-codex-mini` is fastest
 2. **Be specific with file references:** Avoid broad globs
 3. **Enable caching:** Reuse common analyses
 4. **Process in batches:** Break large tasks
 
 ### What are the context limits?
 
-| Model   | Context Window | Recommended Max |
-| ------- | -------------- | --------------- |
-| GPT-5   | 400K tokens    | 350K tokens     |
-| o3      | 200K tokens    | 180K tokens     |
-| o4-mini | 200K tokens    | 180K tokens     |
+| Model              | Context Window | Recommended Max |
+| ------------------ | -------------- | --------------- |
+| gpt-5.1-codex-max  | Extended       | Varies          |
+| gpt-5.1-codex      | Extended       | Varies          |
+| gpt-5.1-codex-mini | Standard       | Varies          |
+| gpt-5.1            | Extended       | Varies          |
 
 ### How do I estimate costs?
 
@@ -330,10 +333,10 @@ Currently, Codex MCP Tool is designed for OpenAI's models via Codex CLI. For oth
 tokens = prompt_length + file_content_length + response_length;
 cost = (tokens / 1000) * model_price_per_1k;
 
-// Model prices (as of 2025)
-// GPT-5: $0.015/1K input, $0.060/1K output
-// o3: $0.015/1K tokens
-// o4-mini: $0.00015/1K input, $0.0006/1K output
+// Model prices vary - check OpenAI pricing for current rates
+// gpt-5.1-codex-max: Premium pricing
+// gpt-5.1-codex: Standard pricing
+// gpt-5.1-codex-mini: Economy pricing
 ```
 
 ## Future & Roadmap
