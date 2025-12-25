@@ -2,8 +2,8 @@
 
 Codex supports several mechanisms for setting config values:
 
-- Config-specific command-line flags, such as `--model gpt-5.1-codex-max` (highest precedence).
-- A generic `-c`/`--config` flag that takes a `key=value` pair, such as `--config model="gpt-5.1-codex-max"`.
+- Config-specific command-line flags, such as `--model gpt-5.2-codex` (highest precedence).
+- A generic `-c`/`--config` flag that takes a `key=value` pair, such as `--config model="gpt-5.2-codex"`.
   - The key can contain dots to set a value deeper than the root, e.g. `--config model_providers.openai.wire_api="chat"`.
   - Values can contain objects, such as `--config shell_environment_policy.include_only=["PATH", "HOME", "USER"]`.
   - For consistency with `config.toml`, values are in TOML format rather than JSON format, so use `{a = 1, b = 2}` rather than `{"a": 1, "b": 2}`.
@@ -17,7 +17,7 @@ Both the `--config` flag and the `config.toml` file support the following option
 The model that Codex should use.
 
 ```toml
-model = "gpt-5.1-codex"  # overrides the default of "gpt-5.1-codex-max"
+model = "gpt-5.1-codex-max"  # overrides the default of "gpt-5.2-codex"
 ```
 
 ## model_providers
@@ -179,7 +179,7 @@ want to use at runtime via the `--profile` flag.
 Here is an example of a `config.toml` that defines multiple profiles:
 
 ```toml
-model = "gpt-5.1-codex-max"
+model = "gpt-5.2-codex"
 approval_policy = "untrusted"
 
 # Setting `profile` is equivalent to specifying `--profile codex` on the command
@@ -193,7 +193,7 @@ env_key = "OPENAI_API_KEY"
 wire_api = "chat"
 
 [profiles.codex]
-model = "gpt-5.1-codex-max"
+model = "gpt-5.2-codex"
 model_provider = "openai"
 approval_policy = "never"
 model_reasoning_effort = "high"
@@ -207,10 +207,10 @@ approval_policy = "on-failure"
 
 Users can specify config values at multiple levels. Order of precedence is as follows:
 
-1. custom command-line argument, e.g., `--model gpt-5.1-codex-max`
+1. custom command-line argument, e.g., `--model gpt-5.2-codex`
 2. as part of a profile, where the `--profile` is specified via a CLI (or in the config file itself)
-3. as an entry in `config.toml`, e.g., `model = "gpt-5.1-codex-max"`
-4. the default value that comes with Codex CLI (i.e., Codex CLI defaults to `gpt-5.1-codex-max`)
+3. as an entry in `config.toml`, e.g., `model = "gpt-5.2-codex"`
+4. the default value that comes with Codex CLI (i.e., Codex CLI defaults to `gpt-5.2-codex`)
 
 ## model_reasoning_effort
 
@@ -250,7 +250,7 @@ When set, Codex includes a `text` object in the request payload with the configu
 Example:
 
 ```toml
-model = "gpt-5.1-codex-max"
+model = "gpt-5.2-codex"
 model_verbosity = "low"
 ```
 
@@ -553,7 +553,7 @@ Options that are specific to the TUI.
 
 | Key                                              | Type / Values                                                     | Notes                                                                   |
 | ------------------------------------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `model`                                          | string                                                            | Model to use (e.g., `gpt-5.1-codex-max`).                               |
+| `model`                                          | string                                                            | Model to use (e.g., `gpt-5.2-codex`).                                   |
 | `model_provider`                                 | string                                                            | Provider id from `model_providers` (default: `openai`).                 |
 | `model_context_window`                           | number                                                            | Context window tokens.                                                  |
 | `model_max_output_tokens`                        | number                                                            | Max output tokens.                                                      |

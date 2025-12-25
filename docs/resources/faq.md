@@ -21,10 +21,10 @@ Codex MCP Tool is a Model Context Protocol (MCP) server that bridges OpenAI's Co
 
 Currently supported OpenAI models:
 
-- **gpt-5.1-codex-max** - Default, highest reliability for coding
-- **gpt-5.1-codex** - Optimized for codex
+- **gpt-5.2-codex** - Default, latest frontier agentic coding
+- **gpt-5.1-codex-max** - Deep and fast reasoning
 - **gpt-5.1-codex-mini** - Fast and cost-effective
-- **gpt-5.1** - General reasoning
+- **gpt-5.2** - Broad knowledge, reasoning and coding
 
 ### Is this an official OpenAI tool?
 

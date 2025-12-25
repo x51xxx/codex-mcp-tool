@@ -107,7 +107,7 @@ const brainstormArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe('Model: gpt-5.1-codex-max (default), gpt-5.1-codex, gpt-5.1-codex-mini, gpt-5.1'),
+    .describe('Model: gpt-5.2-codex (default), gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2'),
   approvalPolicy: z
     .enum(['never', 'on-request', 'on-failure', 'untrusted'])
     .optional()
@@ -145,6 +145,10 @@ const brainstormArgsSchema = z.object({
   oss: z.boolean().optional().describe('Use local Ollama server'),
   enableFeatures: z.array(z.string()).optional().describe('Enable feature flags'),
   disableFeatures: z.array(z.string()).optional().describe('Disable feature flags'),
+  reasoningEffort: z
+    .enum(['low', 'medium', 'high', 'max'])
+    .optional()
+    .describe('Reasoning depth: low (fast), medium (default), high (complex), max (extra deep)'),
 });
 
 export const brainstormTool: UnifiedTool = {
@@ -175,6 +179,7 @@ export const brainstormTool: UnifiedTool = {
       oss,
       enableFeatures,
       disableFeatures,
+      reasoningEffort,
     } = args;
 
     if (!prompt?.trim()) {
@@ -212,6 +217,7 @@ export const brainstormTool: UnifiedTool = {
         oss: oss as boolean,
         enableFeatures: enableFeatures as string[],
         disableFeatures: disableFeatures as string[],
+        reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'max' | undefined,
       },
       onProgress
     );

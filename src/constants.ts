@@ -26,10 +26,18 @@ export const STATUS_MESSAGES = {
 
 // Models (Available in Codex CLI)
 export const MODELS = {
-  GPT5_1_CODEX_MAX: 'gpt-5.1-codex-max', // Default: Frontier agentic coding with highest reliability
-  GPT5_1_CODEX: 'gpt-5.1-codex', // Optimized for codex
-  GPT5_1_CODEX_MINI: 'gpt-5.1-codex-mini', // Cost-efficient, faster, but less capable
-  GPT5_1: 'gpt-5.1', // Broad world knowledge with strong general reasoning
+  GPT5_2_CODEX: 'gpt-5.2-codex', // Default: Latest frontier agentic coding model
+  GPT5_1_CODEX_MAX: 'gpt-5.1-codex-max', // Codex-optimized flagship for deep and fast reasoning
+  GPT5_1_CODEX_MINI: 'gpt-5.1-codex-mini', // Optimized for codex. Cheaper, faster, but less capable
+  GPT5_2: 'gpt-5.2', // Latest frontier model with improvements across knowledge, reasoning and coding
+} as const;
+
+// Reasoning effort levels (Available in Codex CLI)
+export const REASONING_EFFORTS = {
+  LOW: 'low', // Fast responses with lighter reasoning
+  MEDIUM: 'medium', // Default: Balances speed and reasoning depth
+  HIGH: 'high', // Greater reasoning depth for complex problems
+  MAX: 'max', // Extra high reasoning depth for complex problems
 } as const;
 
 // Sandbox modes
@@ -157,6 +165,7 @@ export interface ToolArguments {
   // New parameters (v1.3.0+)
   addDirs?: string[]; // Additional writable directories beyond workspace
   toolOutputTokenLimit?: number; // Max tokens for tool outputs (100-10,000)
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'max'; // Reasoning depth level
 
   // Brainstorming tool
   methodology?: string; // Brainstorming framework to use

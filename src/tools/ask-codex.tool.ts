@@ -23,7 +23,7 @@ const askCodexArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.1-codex-max`),
+    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.2-codex`),
   sandbox: z
     .boolean()
     .default(false)
@@ -109,6 +109,12 @@ const askCodexArgsSchema = z.object({
     .max(10000)
     .optional()
     .describe('Maximum tokens for tool outputs (100-10,000). Controls response verbosity.'),
+  reasoningEffort: z
+    .enum(['low', 'medium', 'high', 'max'])
+    .optional()
+    .describe(
+      'Reasoning depth level: low (fast), medium (default), high (complex problems), max (extra deep reasoning)'
+    ),
   // Session management (v1.4.0+)
   sessionId: z
     .string()
@@ -156,6 +162,7 @@ export const askCodexTool: UnifiedTool = {
       disableFeatures,
       addDirs,
       toolOutputTokenLimit,
+      reasoningEffort,
       sessionId,
       resetSession,
     } = args;
@@ -225,6 +232,7 @@ export const askCodexTool: UnifiedTool = {
           disableFeatures: disableFeatures as string[],
           addDirs: addDirs as string[],
           toolOutputTokenLimit: toolOutputTokenLimit as number,
+          reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'max' | undefined,
           codexConversationId, // Pass conversation ID for resume
         },
         onProgress

@@ -37,8 +37,8 @@ The `ask-codex` tool provides non-interactive execution of Codex commands, suppo
 ### model (optional)
 
 - **Type:** `string`
-- **Default:** `gpt-5.1-codex-max`
-- **Options:** `"gpt-5.1-codex-max"`, `"gpt-5.1-codex"`, `"gpt-5.1-codex-mini"`, `"gpt-5.1"`
+- **Default:** `gpt-5.2-codex`
+- **Options:** `"gpt-5.2-codex"`, `"gpt-5.1-codex-max"`, `"gpt-5.1-codex-mini"`, `"gpt-5.2"`
 - **Example:** `"model": "gpt-5.1-codex-mini"`
 
 ### sandbox (optional)
@@ -104,6 +104,18 @@ The `ask-codex` tool provides non-interactive execution of Codex commands, suppo
 - **Default:** `false`
 - **Description:** Bypass all approvals and sandbox (use with extreme caution)
 - **Warning:** Allows unrestricted file system access
+
+### reasoningEffort (optional)
+
+- **Type:** `string`
+- **Options:** `"low"`, `"medium"`, `"high"`, `"max"`
+- **Default:** `"medium"`
+- **Description:** Controls reasoning depth for complex problems
+- **Usage:**
+  - `low` - Fast responses with lighter reasoning
+  - `medium` - Balances speed and reasoning depth (default)
+  - `high` - Greater reasoning depth for complex problems
+  - `max` - Extra high reasoning depth for the most complex tasks
 
 ## File References
 

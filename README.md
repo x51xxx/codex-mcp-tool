@@ -54,7 +54,7 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 'analyze @package.json and list dependencies';
 
 // With specific model
-'use codex with model gpt-5.1-codex to analyze @algorithm.py';
+'use codex with model gpt-5.2-codex to analyze @algorithm.py';
 
 // Multi-turn conversations (v1.4.0+)
 'ask codex sessionId:"my-project" prompt:"explain @src/"';
@@ -82,14 +82,14 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 
 ## Models
 
-Default: `gpt-5.1-codex-max` with fallback → `gpt-5.1-codex` → `gpt-5.1`
+Default: `gpt-5.2-codex` with fallback → `gpt-5.1-codex-max` → `gpt-5.2`
 
-| Model                | Use Case                           |
-| -------------------- | ---------------------------------- |
-| `gpt-5.1-codex-max`  | Complex multi-file edits (default) |
-| `gpt-5.1-codex`      | Optimized for codex                |
-| `gpt-5.1-codex-mini` | Cost-efficient quick tasks         |
-| `gpt-5.1`            | General reasoning                  |
+| Model                | Use Case                                 |
+| -------------------- | ---------------------------------------- |
+| `gpt-5.2-codex`      | Latest frontier agentic coding (default) |
+| `gpt-5.1-codex-max`  | Deep and fast reasoning                  |
+| `gpt-5.1-codex-mini` | Cost-efficient quick tasks               |
+| `gpt-5.2`            | Broad knowledge, reasoning and coding    |
 
 ## Key Features
 
@@ -110,23 +110,25 @@ Multi-turn conversations with workspace isolation:
 
 ### Advanced Options
 
-| Parameter              | Description                         |
-| ---------------------- | ----------------------------------- |
-| `model`                | Model selection                     |
-| `sessionId`            | Enable conversation continuity      |
-| `sandbox`              | Enable `--full-auto` mode           |
-| `search`               | Enable web search                   |
-| `changeMode`           | Structured OLD/NEW edits            |
-| `addDirs`              | Additional writable directories     |
-| `toolOutputTokenLimit` | Cap response verbosity (100-10,000) |
+| Parameter              | Description                             |
+| ---------------------- | --------------------------------------- |
+| `model`                | Model selection                         |
+| `sessionId`            | Enable conversation continuity          |
+| `sandbox`              | Enable `--full-auto` mode               |
+| `search`               | Enable web search                       |
+| `changeMode`           | Structured OLD/NEW edits                |
+| `addDirs`              | Additional writable directories         |
+| `toolOutputTokenLimit` | Cap response verbosity (100-10,000)     |
+| `reasoningEffort`      | Reasoning depth: low, medium, high, max |
 
 ## CLI Compatibility
 
-| Version  | Features                                |
-| -------- | --------------------------------------- |
-| v0.59.0+ | `--add-dir`, token limits, full GPT-5.1 |
-| v0.52.0+ | Native `--search` flag                  |
-| v0.36.0+ | Native `codex resume` (sessions)        |
+| Version  | Features                         |
+| -------- | -------------------------------- |
+| v0.60.0+ | GPT-5.2 model family             |
+| v0.59.0+ | `--add-dir`, token limits        |
+| v0.52.0+ | Native `--search` flag           |
+| v0.36.0+ | Native `codex resume` (sessions) |
 
 ## Troubleshooting
 

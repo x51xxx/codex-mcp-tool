@@ -34,6 +34,7 @@ export interface CodexCommandBuilderOptions {
   readonly disableFeatures?: string[];
   readonly addDirs?: string[];
   readonly toolOutputTokenLimit?: number;
+  readonly reasoningEffort?: 'low' | 'medium' | 'high' | 'max';
   readonly useExec?: boolean;
   readonly concisePrompt?: boolean;
   readonly useStdinForLongPrompts?: boolean;
@@ -102,7 +103,10 @@ export class CodexCommandBuilder {
     // 9. Advanced features (addDirs + tokenLimit)
     await this.addAdvancedFeatures(options);
 
-    // 10. Configuration
+    // 10. Reasoning effort level
+    this.addReasoningEffort(options);
+
+    // 11. Configuration
     if (options?.config) {
       if (typeof options.config === 'string') {
         this.args.push(CLI.FLAGS.CONFIG, options.config);
@@ -114,12 +118,12 @@ export class CodexCommandBuilder {
       }
     }
 
-    // 11. Profile
+    // 12. Profile
     if (options?.profile) {
       this.args.push(CLI.FLAGS.PROFILE, options.profile);
     }
 
-    // 12. Images
+    // 13. Images
     if (options?.image) {
       const images = Array.isArray(options.image) ? options.image : [options.image];
       for (const img of images) {
@@ -127,7 +131,7 @@ export class CodexCommandBuilder {
       }
     }
 
-    // 13. Command mode (exec or exec resume)
+    // 14. Command mode (exec or exec resume)
     if (this.useResumeMode && options?.codexConversationId) {
       // Use "exec resume <session_id>" for non-interactive resume
       this.args.push('exec', CLI.FLAGS.RESUME, options.codexConversationId);
@@ -137,7 +141,7 @@ export class CodexCommandBuilder {
       this.args.push('exec');
     }
 
-    // 14. Handle prompt (concise mode, stdin for large prompts)
+    // 15. Handle prompt (concise mode, stdin for large prompts)
     return this.handlePrompt(prompt, options);
   }
 
@@ -296,6 +300,23 @@ export class CodexCommandBuilder {
       } else {
         Logger.warn(
           'Tool output token limit specified but not supported (requires Codex CLI v0.59.0+). Ignoring toolOutputTokenLimit parameter.'
+        );
+      }
+    }
+  }
+
+  /**
+   * Add reasoning effort level (low, medium, high, max)
+   */
+  private addReasoningEffort(options?: CodexCommandBuilderOptions): void {
+    if (options?.reasoningEffort) {
+      const validEfforts = ['low', 'medium', 'high', 'max'];
+      if (validEfforts.includes(options.reasoningEffort)) {
+        this.args.push(CLI.FLAGS.CONFIG, `model_reasoning_effort="${options.reasoningEffort}"`);
+        Logger.debug(`Using reasoning effort: ${options.reasoningEffort}`);
+      } else {
+        Logger.warn(
+          `Invalid reasoning effort '${options.reasoningEffort}'. Valid values: low, medium, high, max`
         );
       }
     }
