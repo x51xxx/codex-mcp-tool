@@ -34,7 +34,7 @@ export interface CodexCommandBuilderOptions {
   readonly disableFeatures?: string[];
   readonly addDirs?: string[];
   readonly toolOutputTokenLimit?: number;
-  readonly reasoningEffort?: 'low' | 'medium' | 'high' | 'max';
+  readonly reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh';
   readonly useExec?: boolean;
   readonly concisePrompt?: boolean;
   readonly useStdinForLongPrompts?: boolean;
@@ -306,17 +306,18 @@ export class CodexCommandBuilder {
   }
 
   /**
-   * Add reasoning effort level (low, medium, high, max)
+   * Add reasoning effort level (low, medium, high, xhigh)
+   * Note: 'none' and 'minimal' are accepted by Codex CLI parser but rejected by OpenAI API for gpt-5.2-codex
    */
   private addReasoningEffort(options?: CodexCommandBuilderOptions): void {
     if (options?.reasoningEffort) {
-      const validEfforts = ['low', 'medium', 'high', 'max'];
+      const validEfforts = ['low', 'medium', 'high', 'xhigh'];
       if (validEfforts.includes(options.reasoningEffort)) {
         this.args.push(CLI.FLAGS.CONFIG, `model_reasoning_effort="${options.reasoningEffort}"`);
         Logger.debug(`Using reasoning effort: ${options.reasoningEffort}`);
       } else {
         Logger.warn(
-          `Invalid reasoning effort '${options.reasoningEffort}'. Valid values: low, medium, high, max`
+          `Invalid reasoning effort '${options.reasoningEffort}'. Valid values: low, medium, high, xhigh`
         );
       }
     }

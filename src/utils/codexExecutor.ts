@@ -50,7 +50,7 @@ export interface CodexExecOptions {
   // New parameters (v1.3.0+)
   readonly addDirs?: string[]; // Additional writable directories
   readonly toolOutputTokenLimit?: number; // Max tokens for tool outputs (100-10,000)
-  readonly reasoningEffort?: 'low' | 'medium' | 'high' | 'max'; // Reasoning depth level
+  readonly reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh'; // Reasoning depth level
   // Session/Resume support (v1.4.0+)
   readonly codexConversationId?: string; // Native Codex conversation ID for resume
 }

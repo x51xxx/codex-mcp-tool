@@ -110,10 +110,10 @@ const askCodexArgsSchema = z.object({
     .optional()
     .describe('Maximum tokens for tool outputs (100-10,000). Controls response verbosity.'),
   reasoningEffort: z
-    .enum(['low', 'medium', 'high', 'max'])
+    .enum(['low', 'medium', 'high', 'xhigh'])
     .optional()
     .describe(
-      'Reasoning depth level: low (fast), medium (default), high (complex problems), max (extra deep reasoning)'
+      'Reasoning depth level: low (fast), medium (default), high (complex), xhigh (extra deep)'
     ),
   // Session management (v1.4.0+)
   sessionId: z
@@ -232,7 +232,7 @@ export const askCodexTool: UnifiedTool = {
           disableFeatures: disableFeatures as string[],
           addDirs: addDirs as string[],
           toolOutputTokenLimit: toolOutputTokenLimit as number,
-          reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'max' | undefined,
+          reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'xhigh' | undefined,
           codexConversationId, // Pass conversation ID for resume
         },
         onProgress

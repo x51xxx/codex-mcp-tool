@@ -146,9 +146,9 @@ const brainstormArgsSchema = z.object({
   enableFeatures: z.array(z.string()).optional().describe('Enable feature flags'),
   disableFeatures: z.array(z.string()).optional().describe('Disable feature flags'),
   reasoningEffort: z
-    .enum(['low', 'medium', 'high', 'max'])
+    .enum(['low', 'medium', 'high', 'xhigh'])
     .optional()
-    .describe('Reasoning depth: low (fast), medium (default), high (complex), max (extra deep)'),
+    .describe('Reasoning depth: low (fast), medium (default), high (complex), xhigh (extra deep)'),
 });
 
 export const brainstormTool: UnifiedTool = {
@@ -217,7 +217,7 @@ export const brainstormTool: UnifiedTool = {
         oss: oss as boolean,
         enableFeatures: enableFeatures as string[],
         disableFeatures: disableFeatures as string[],
-        reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'max' | undefined,
+        reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'xhigh' | undefined,
       },
       onProgress
     );

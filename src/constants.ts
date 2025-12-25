@@ -32,12 +32,13 @@ export const MODELS = {
   GPT5_2: 'gpt-5.2', // Latest frontier model with improvements across knowledge, reasoning and coding
 } as const;
 
-// Reasoning effort levels (Available in Codex CLI)
+// Reasoning effort levels (Available for gpt-5.2-codex model)
+// Note: Codex CLI parser accepts 'none'/'minimal' but OpenAI API rejects them for this model
 export const REASONING_EFFORTS = {
   LOW: 'low', // Fast responses with lighter reasoning
   MEDIUM: 'medium', // Default: Balances speed and reasoning depth
   HIGH: 'high', // Greater reasoning depth for complex problems
-  MAX: 'max', // Extra high reasoning depth for complex problems
+  XHIGH: 'xhigh', // Extra high reasoning depth for complex problems
 } as const;
 
 // Sandbox modes
@@ -165,7 +166,7 @@ export interface ToolArguments {
   // New parameters (v1.3.0+)
   addDirs?: string[]; // Additional writable directories beyond workspace
   toolOutputTokenLimit?: number; // Max tokens for tool outputs (100-10,000)
-  reasoningEffort?: 'low' | 'medium' | 'high' | 'max'; // Reasoning depth level
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh'; // Reasoning depth level
 
   // Brainstorming tool
   methodology?: string; // Brainstorming framework to use
