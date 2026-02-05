@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { UnifiedTool } from './registry.js';
 import { Logger } from '../utils/logger.js';
 import { executeCodexCLI } from '../utils/codexExecutor.js';
+import { MODELS } from '../constants.js';
 
 function buildBrainstormPrompt(config: {
   prompt: string;
@@ -107,7 +108,7 @@ const brainstormArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe('Model: gpt-5.2-codex (default), gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2'),
+    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.3-codex`),
   approvalPolicy: z
     .enum(['never', 'on-request', 'on-failure', 'untrusted'])
     .optional()

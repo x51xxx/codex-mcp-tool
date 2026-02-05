@@ -26,13 +26,14 @@ export const STATUS_MESSAGES = {
 
 // Models (Available in Codex CLI)
 export const MODELS = {
-  GPT5_2_CODEX: 'gpt-5.2-codex', // Default: Latest frontier agentic coding model
+  GPT5_3_CODEX: 'gpt-5.3-codex', // Default: Latest frontier agentic coding model
+  GPT5_2_CODEX: 'gpt-5.2-codex', // Frontier agentic coding model
   GPT5_1_CODEX_MAX: 'gpt-5.1-codex-max', // Codex-optimized flagship for deep and fast reasoning
   GPT5_1_CODEX_MINI: 'gpt-5.1-codex-mini', // Optimized for codex. Cheaper, faster, but less capable
   GPT5_2: 'gpt-5.2', // Latest frontier model with improvements across knowledge, reasoning and coding
 } as const;
 
-// Reasoning effort levels (Available for gpt-5.2-codex model)
+// Reasoning effort levels (Available for gpt-5.3-codex model)
 // Note: Codex CLI parser accepts 'none'/'minimal' but OpenAI API rejects them for this model
 export const REASONING_EFFORTS = {
   LOW: 'low', // Fast responses with lighter reasoning

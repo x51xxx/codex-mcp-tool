@@ -23,7 +23,7 @@ const askCodexArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.2-codex`),
+    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.3-codex`),
   sandbox: z
     .boolean()
     .default(false)

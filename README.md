@@ -54,7 +54,7 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 'analyze @package.json and list dependencies';
 
 // With specific model
-'use codex with model gpt-5.2-codex to analyze @algorithm.py';
+'use codex with model gpt-5.3-codex to analyze @algorithm.py';
 
 // Multi-turn conversations (v1.4.0+)
 'ask codex sessionId:"my-project" prompt:"explain @src/"';
@@ -82,11 +82,12 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 
 ## Models
 
-Default: `gpt-5.2-codex` with fallback → `gpt-5.1-codex-max` → `gpt-5.2`
+Default: `gpt-5.3-codex` with fallback → `gpt-5.2-codex` → `gpt-5.1-codex-max` → `gpt-5.2`
 
 | Model                | Use Case                                 |
 | -------------------- | ---------------------------------------- |
-| `gpt-5.2-codex`      | Latest frontier agentic coding (default) |
+| `gpt-5.3-codex`      | Latest frontier agentic coding (default) |
+| `gpt-5.2-codex`      | Frontier agentic coding                  |
 | `gpt-5.1-codex-max`  | Deep and fast reasoning                  |
 | `gpt-5.1-codex-mini` | Cost-efficient quick tasks               |
 | `gpt-5.2`            | Broad knowledge, reasoning and coding    |

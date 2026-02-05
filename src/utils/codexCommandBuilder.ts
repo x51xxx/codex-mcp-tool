@@ -307,7 +307,7 @@ export class CodexCommandBuilder {
 
   /**
    * Add reasoning effort level (low, medium, high, xhigh)
-   * Note: 'none' and 'minimal' are accepted by Codex CLI parser but rejected by OpenAI API for gpt-5.2-codex
+   * Note: 'none' and 'minimal' are accepted by Codex CLI parser but rejected by OpenAI API for gpt-5.3-codex
    */
   private addReasoningEffort(options?: CodexCommandBuilderOptions): void {
     if (options?.reasoningEffort) {
