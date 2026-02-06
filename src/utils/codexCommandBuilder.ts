@@ -30,6 +30,7 @@ export interface CodexCommandBuilderOptions {
   readonly image?: string | string[];
   readonly search?: boolean;
   readonly oss?: boolean;
+  readonly localProvider?: 'lmstudio' | 'ollama';
   readonly enableFeatures?: string[];
   readonly disableFeatures?: string[];
   readonly addDirs?: string[];
@@ -40,6 +41,8 @@ export interface CodexCommandBuilderOptions {
   readonly useStdinForLongPrompts?: boolean;
   // Session/Resume support (v1.4.0+)
   readonly codexConversationId?: string; // Native Codex conversation ID for resume
+  // Change mode support
+  readonly changeMode?: boolean; // Prepend format instructions for structured OLD/NEW edits
 }
 
 /**
@@ -76,8 +79,9 @@ export class CodexCommandBuilder {
     // 2. Check if we should use resume mode
     await this.checkResumeMode(options);
 
-    // 3. Model selection with fallback
-    await this.addModelArg(options?.model);
+    // 3. Model selection with fallback (skip validation for OSS/local models)
+    const isOssMode = !!(options?.oss || options?.localProvider);
+    await this.addModelArg(options?.model, isOssMode);
 
     // 4. Safety controls (yolo, fullAuto, approval, sandbox)
     this.addSafetyArgs(options);
@@ -85,10 +89,8 @@ export class CodexCommandBuilder {
     // 5. Working directory
     this.addWorkingDir(options, prompt);
 
-    // 6. OSS mode
-    if (options?.oss) {
-      this.args.push(CLI.FLAGS.OSS);
-    }
+    // 6. OSS flags are deferred to after exec (step 14b) —
+    //    Codex CLI only applies --oss/--local-provider as exec subcommand flags.
 
     // 7. Search + Feature flags (shared 69-line logic)
     await this.addSearchAndFeatures(options);
@@ -141,6 +143,31 @@ export class CodexCommandBuilder {
       this.args.push('exec');
     }
 
+    // 14b. OSS mode — must come AFTER exec (Codex CLI parses --oss as exec subcommand flag)
+    if (options?.oss || options?.localProvider) {
+      if (this.useResumeMode) {
+        // exec resume has a limited flag set (no --oss/--local-provider).
+        // Only set model_provider when localProvider is explicitly specified.
+        if (options.localProvider) {
+          this.args.push(CLI.FLAGS.CONFIG, `model_provider=${options.localProvider}`);
+          Logger.debug(`Resume mode: using -c model_provider=${options.localProvider} (--oss not supported)`);
+        } else {
+          // oss: true without explicit localProvider — let resumed session keep its original provider
+          Logger.debug('Resume mode: oss enabled but no localProvider specified, using session defaults');
+        }
+      } else {
+        this.args.push(CLI.FLAGS.OSS);
+        if (options?.localProvider) {
+          this.args.push(CLI.FLAGS.LOCAL_PROVIDER, options.localProvider);
+          Logger.debug(
+            options?.oss
+              ? `Using local provider: ${options.localProvider}`
+              : `Auto-enabling --oss for localProvider: ${options.localProvider}`
+          );
+        }
+      }
+    }
+
     // 15. Handle prompt (concise mode, stdin for large prompts)
     return this.handlePrompt(prompt, options);
   }
@@ -176,8 +203,24 @@ export class CodexCommandBuilder {
 
   /**
    * Add model argument with fallback chain
+   * @param model Requested model name
+   * @param skipValidation When true (OSS/local mode), pass model as-is without fallback checks
    */
-  private async addModelArg(model?: string): Promise<void> {
+  private async addModelArg(model?: string, skipValidation?: boolean): Promise<void> {
+    if (skipValidation) {
+      if (model) {
+        // OSS/local models (e.g. qwen3:8b, gemma3:4b) are not in MODELS constant —
+        // pass them directly without validation or fallback.
+        this.args.push(CLI.FLAGS.MODEL, model);
+        Logger.debug(`Using local/OSS model: ${model}`);
+      } else {
+        // OSS mode without explicit model — don't inject OpenAI model,
+        // let Codex CLI / local provider use its default
+        Logger.debug('OSS/local mode: skipping model flag, using provider default');
+      }
+      return;
+    }
+
     const selectedModel = await getModelWithFallback(model);
     this.args.push(CLI.FLAGS.MODEL, selectedModel);
 
@@ -207,10 +250,10 @@ export class CodexCommandBuilder {
       // Sandbox mode
       if (options?.sandboxMode) {
         this.args.push(CLI.FLAGS.SANDBOX_MODE, options.sandboxMode);
-      } else if (options?.search || options?.oss) {
-        // Auto-enable workspace-write for search/oss if no sandbox specified
+      } else if (options?.search || options?.oss || options?.localProvider) {
+        // Auto-enable workspace-write for search/oss/localProvider if no sandbox specified
         Logger.debug(
-          'Search/OSS enabled: auto-setting sandbox to workspace-write for network access'
+          'Search/OSS/localProvider enabled: auto-setting sandbox to workspace-write for network access'
         );
         this.args.push(CLI.FLAGS.SANDBOX_MODE, 'workspace-write');
       }
@@ -329,6 +372,22 @@ export class CodexCommandBuilder {
   private handlePrompt(prompt: string, options?: CodexCommandBuilderOptions): BuildResult {
     let finalPrompt = prompt;
     let tempFile: string | undefined;
+
+    // Add changeMode format instruction so Codex CLI outputs structured edits
+    if (options?.changeMode) {
+      finalPrompt =
+        'IMPORTANT: Format ALL code changes using this exact structure for each edit:\n\n' +
+        '**FILE: path/to/file.ts:LINE_NUMBER**\n' +
+        '```\n' +
+        'OLD:\n' +
+        '[exact original code]\n' +
+        'NEW:\n' +
+        '[replacement code]\n' +
+        '```\n\n' +
+        'Provide one block per edit. Include the exact original code that should be replaced.\n\n' +
+        finalPrompt;
+      Logger.debug('Change mode enabled: prepended format instructions to prompt');
+    }
 
     // Add conciseness instruction if requested
     if (options?.concisePrompt) {

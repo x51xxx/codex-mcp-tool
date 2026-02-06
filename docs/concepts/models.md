@@ -154,6 +154,21 @@ model = "gpt-5.3-codex"
 }
 ```
 
+### Local OSS Models
+
+Use `oss: true` to run with a local model provider. Specify `localProvider` to choose between LM Studio and Ollama:
+
+```javascript
+// Auto-select local provider (config default or interactive selection)
+{ "prompt": "analyze code", "oss": true }
+
+// Explicitly use LM Studio
+{ "prompt": "analyze code", "localProvider": "lmstudio" }
+
+// Explicitly use Ollama (auto-enables --oss)
+{ "prompt": "analyze code", "localProvider": "ollama" }
+```
+
 ## Model Fallback Chain
 
 The tool uses automatic fallback when a model is unavailable:

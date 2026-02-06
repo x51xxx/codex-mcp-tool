@@ -16,6 +16,7 @@ MCP server connecting Claude/Cursor to Codex CLI. Enables code analysis via `@` 
 - **File Analysis** — Reference files with `@src/`, `@package.json` syntax
 - **Multi-Turn Sessions** — Conversation continuity with workspace isolation
 - **Native Resume** — Uses `codex resume` for context preservation (CLI v0.36.0+)
+- **Local OSS Models** — Run with Ollama or LM Studio via `localProvider`
 - **Web Search** — Research capabilities with `search: true`
 - **Sandbox Mode** — Safe code execution with `--full-auto`
 - **Change Mode** — Structured OLD/NEW patch output for refactoring
@@ -68,6 +69,9 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 
 // Web search
 'ask codex search:true prompt:"latest TypeScript 5.7 features"';
+
+// Local OSS model (Ollama)
+'ask codex localProvider:"ollama" model:"qwen3:8b" prompt:"explain @src/"';
 ```
 
 ## Tools
@@ -109,18 +113,37 @@ Multi-turn conversations with workspace isolation:
 - `CODEX_SESSION_TTL_MS` - Session TTL (default: 24h)
 - `CODEX_MAX_SESSIONS` - Max sessions (default: 50)
 
+### Local OSS Models (v1.6.0+)
+
+Run with local Ollama or LM Studio instead of OpenAI:
+
+```javascript
+// Ollama
+{ "prompt": "analyze @src/", "localProvider": "ollama", "model": "qwen3:8b" }
+
+// LM Studio
+{ "prompt": "analyze @src/", "localProvider": "lmstudio", "model": "my-model" }
+
+// Auto-select provider
+{ "prompt": "analyze @src/", "oss": true }
+```
+
+**Requirements:** [Ollama](https://ollama.com) running locally with a model that supports tool calling (e.g. `qwen3:8b`).
+
 ### Advanced Options
 
-| Parameter              | Description                             |
-| ---------------------- | --------------------------------------- |
-| `model`                | Model selection                         |
-| `sessionId`            | Enable conversation continuity          |
-| `sandbox`              | Enable `--full-auto` mode               |
-| `search`               | Enable web search                       |
-| `changeMode`           | Structured OLD/NEW edits                |
-| `addDirs`              | Additional writable directories         |
-| `toolOutputTokenLimit` | Cap response verbosity (100-10,000)     |
-| `reasoningEffort`      | Reasoning depth: low, medium, high, max |
+| Parameter              | Description                               |
+| ---------------------- | ----------------------------------------- |
+| `model`                | Model selection                           |
+| `sessionId`            | Enable conversation continuity            |
+| `sandbox`              | Enable `--full-auto` mode                 |
+| `search`               | Enable web search                         |
+| `changeMode`           | Structured OLD/NEW edits                  |
+| `addDirs`              | Additional writable directories           |
+| `toolOutputTokenLimit` | Cap response verbosity (100-10,000)       |
+| `reasoningEffort`      | Reasoning depth: low, medium, high, xhigh |
+| `oss`                  | Use local OSS model provider              |
+| `localProvider`        | Local provider: `lmstudio` or `ollama`    |
 
 ## CLI Compatibility
 
@@ -141,6 +164,8 @@ codex login        # Authenticate
 Use `health` tool for diagnostics: `'use health verbose:true'`
 
 ## Migration
+
+**v1.5.x → v1.6.0:** Local OSS model support (`localProvider`, `oss`), `gpt-5.3-codex` default model, `xhigh` reasoning effort.
 
 **v1.3.x → v1.4.0:** New `sessionId` parameter, `list-sessions`/`health` tools, structured error handling. No breaking changes.
 

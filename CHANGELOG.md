@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.7.0] - 2026-02-06
+
+### Added
+
+- **Local OSS Model Support**: Run with Ollama or LM Studio instead of OpenAI
+  - `localProvider` parameter (`"ollama"` or `"lmstudio"`) for `ask-codex` and `brainstorm`
+  - Local model names (e.g. `qwen3:8b`) passed as-is, skipping OpenAI model validation
+  - Sessions with resume work correctly via `-c model_provider=<provider>` fallback
+
+### Changed
+
+- Updated `AGENTS.md` with architecture notes and current tool list
+- Updated `README.md` with Local OSS Models section and examples
+
+## [1.6.0] - 2026-02-05
+
+### Added
+
+- **GPT-5.3-Codex**: New default model (latest frontier agentic coding model)
+  - Updated fallback chain: `gpt-5.3-codex` → `gpt-5.2-codex` → `gpt-5.1-codex-max` → `gpt-5.2`
+
+### Changed
+
+- Default model: `gpt-5.2-codex` → `gpt-5.3-codex`
+
+## [1.5.1] - 2026-01-15
+
+### Changed
+
+- Reasoning effort `max` renamed to `xhigh` to match Codex CLI/OpenAI API
+
 ## [1.5.0] - 2025-12-25
 
 ### Added

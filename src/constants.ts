@@ -109,6 +109,7 @@ export const CLI = {
     VERSION: '--version',
     WORKING_DIR: '-C',
     OSS: '--oss',
+    LOCAL_PROVIDER: '--local-provider', // Specify local provider: lmstudio or ollama
     ENABLE: '--enable',
     DISABLE: '--disable',
     // New flags (v1.3.0+)
@@ -162,6 +163,7 @@ export interface ToolArguments {
   includeMetadata?: boolean; // Include metadata in response
   search?: boolean; // Enable web search (native web_search tool)
   oss?: boolean; // Use local Ollama server (model_provider=oss)
+  localProvider?: 'lmstudio' | 'ollama'; // Specify local provider for OSS mode
   enableFeatures?: string[]; // Enable feature flags
   disableFeatures?: string[]; // Disable feature flags
   // New parameters (v1.3.0+)

@@ -45,6 +45,7 @@ export interface CodexExecOptions {
   readonly useExec?: boolean;
   readonly search?: boolean; // Enable web search
   readonly oss?: boolean; // Use local Ollama server
+  readonly localProvider?: 'lmstudio' | 'ollama'; // Specify local provider
   readonly enableFeatures?: string[]; // Enable feature flags
   readonly disableFeatures?: string[]; // Disable feature flags
   // New parameters (v1.3.0+)
@@ -53,6 +54,8 @@ export interface CodexExecOptions {
   readonly reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh'; // Reasoning depth level
   // Session/Resume support (v1.4.0+)
   readonly codexConversationId?: string; // Native Codex conversation ID for resume
+  // Change mode support
+  readonly changeMode?: boolean; // Prepend format instructions for structured OLD/NEW edits
 }
 
 /**

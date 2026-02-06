@@ -144,6 +144,12 @@ const brainstormArgsSchema = z.object({
     .optional()
     .describe('Enable web search for research (activates web_search_request feature)'),
   oss: z.boolean().optional().describe('Use local Ollama server'),
+  localProvider: z
+    .enum(['lmstudio', 'ollama'])
+    .optional()
+    .describe(
+      'Specify which local provider to use (lmstudio or ollama). Automatically enables --oss if not set.'
+    ),
   enableFeatures: z.array(z.string()).optional().describe('Enable feature flags'),
   disableFeatures: z.array(z.string()).optional().describe('Disable feature flags'),
   reasoningEffort: z
@@ -178,6 +184,7 @@ export const brainstormTool: UnifiedTool = {
       includeAnalysis = true,
       search,
       oss,
+      localProvider,
       enableFeatures,
       disableFeatures,
       reasoningEffort,
@@ -216,6 +223,7 @@ export const brainstormTool: UnifiedTool = {
         cd: cd as string | undefined,
         search: search as boolean,
         oss: oss as boolean,
+        localProvider: localProvider as 'lmstudio' | 'ollama' | undefined,
         enableFeatures: enableFeatures as string[],
         disableFeatures: disableFeatures as string[],
         reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'xhigh' | undefined,

@@ -88,6 +88,12 @@ const askCodexArgsSchema = z.object({
     .describe(
       'Use local Ollama server (convenience for -c model_provider=oss). Requires Ollama running locally. Automatically sets sandbox to workspace-write if not specified.'
     ),
+  localProvider: z
+    .enum(['lmstudio', 'ollama'])
+    .optional()
+    .describe(
+      'Specify which local provider to use (lmstudio or ollama). Automatically enables --oss if not set. If omitted with --oss, uses config default or shows selection.'
+    ),
   enableFeatures: z
     .array(z.string())
     .optional()
@@ -165,6 +171,7 @@ export const askCodexTool: UnifiedTool = {
       reasoningEffort,
       sessionId,
       resetSession,
+      localProvider,
     } = args;
 
     if (!prompt?.trim()) {
@@ -228,12 +235,14 @@ export const askCodexTool: UnifiedTool = {
           timeout: timeout as number,
           search: search as boolean,
           oss: oss as boolean,
+          localProvider: localProvider as 'lmstudio' | 'ollama' | undefined,
           enableFeatures: enableFeatures as string[],
           disableFeatures: disableFeatures as string[],
           addDirs: addDirs as string[],
           toolOutputTokenLimit: toolOutputTokenLimit as number,
           reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'xhigh' | undefined,
           codexConversationId, // Pass conversation ID for resume
+          changeMode: Boolean(changeMode), // Pass changeMode for format instructions
         },
         onProgress
       );
