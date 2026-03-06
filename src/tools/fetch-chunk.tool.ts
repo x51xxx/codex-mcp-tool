@@ -18,6 +18,11 @@ export const fetchChunkTool: UnifiedTool = {
     'Retrieves cached chunks from a changeMode response. Use this to get subsequent chunks after receiving a partial changeMode response.',
 
   zodSchema: inputSchema,
+  annotations: {
+    readOnlyHint: true,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
 
   prompt: {
     description: 'Fetch the next chunk of a response',

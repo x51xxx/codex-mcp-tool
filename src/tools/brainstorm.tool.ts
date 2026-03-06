@@ -108,7 +108,7 @@ const brainstormArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.3-codex`),
+    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.4`),
   approvalPolicy: z
     .enum(['never', 'on-request', 'on-failure', 'untrusted'])
     .optional()
@@ -156,6 +156,12 @@ const brainstormArgsSchema = z.object({
     .enum(['low', 'medium', 'high', 'xhigh'])
     .optional()
     .describe('Reasoning depth: low (fast), medium (default), high (complex), xhigh (extra deep)'),
+  personality: z
+    .enum(['pragmatic', 'friendly'])
+    .optional()
+    .describe(
+      'Communication style: pragmatic (concise, machine-friendly) or friendly (conversational). Codex CLI v0.94.0+'
+    ),
 });
 
 export const brainstormTool: UnifiedTool = {
@@ -163,6 +169,10 @@ export const brainstormTool: UnifiedTool = {
   description:
     'Generate creative ideas using structured frameworks with domain context and feasibility analysis.',
   zodSchema: brainstormArgsSchema,
+  annotations: {
+    readOnlyHint: false,
+    openWorldHint: true,
+  },
   prompt: {
     description: 'Create structured brainstorming with chosen methodology and analysis',
   },
@@ -188,6 +198,7 @@ export const brainstormTool: UnifiedTool = {
       enableFeatures,
       disableFeatures,
       reasoningEffort,
+      personality,
     } = args;
 
     if (!prompt?.trim()) {
@@ -227,6 +238,7 @@ export const brainstormTool: UnifiedTool = {
         enableFeatures: enableFeatures as string[],
         disableFeatures: disableFeatures as string[],
         reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'xhigh' | undefined,
+        personality: personality as 'pragmatic' | 'friendly' | undefined,
       },
       onProgress
     );

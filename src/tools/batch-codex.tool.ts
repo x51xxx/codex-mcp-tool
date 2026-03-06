@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { UnifiedTool } from './registry.js';
+import { UnifiedTool, StructuredToolResult } from './registry.js';
 import { executeCodex } from '../utils/codexExecutor.js';
 import { ERROR_MESSAGES, STATUS_MESSAGES, MODELS, SANDBOX_MODES } from '../constants.js';
 
@@ -38,6 +38,22 @@ export const batchCodexTool: UnifiedTool = {
   description:
     'Delegate multiple atomic tasks to Codex for batch processing. Ideal for repetitive operations, mass refactoring, and automated code transformations',
   zodSchema: batchCodexArgsSchema,
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: true,
+    openWorldHint: true,
+  },
+  outputSchema: {
+    type: 'object',
+    properties: {
+      total: { type: 'number' },
+      successful: { type: 'number' },
+      failed: { type: 'number' },
+      skipped: { type: 'number' },
+      results: { type: 'array' },
+    },
+    required: ['total', 'successful', 'failed', 'skipped', 'results'],
+  },
   prompt: {
     description: 'Execute multiple atomic Codex tasks in batch mode for efficient automation',
   },
@@ -172,6 +188,15 @@ export const batchCodexTool: UnifiedTool = {
       throw new Error(`All ${failedCount} tasks failed. See report above for details.`);
     }
 
-    return report;
+    return {
+      text: report,
+      structuredContent: {
+        total: sortedTasks.length,
+        successful: successCount,
+        failed: failedCount,
+        skipped: sortedTasks.length - successCount - failedCount,
+        results,
+      },
+    } as StructuredToolResult;
   },
 };

@@ -9,6 +9,8 @@ import { fetchChunkTool } from './fetch-chunk.tool.js';
 import { timeoutTestTool } from './timeout-test.tool.js';
 import { listSessionsTool } from './list-sessions.tool.js';
 import { healthTool } from './health.tool.js';
+import { listSkillsTool } from './list-skills.tool.js';
+import { doActTool } from './do-act.tool.js';
 
 toolRegistry.push(
   askCodexTool,
@@ -21,7 +23,9 @@ toolRegistry.push(
   fetchChunkTool,
   timeoutTestTool,
   listSessionsTool,
-  healthTool
+  healthTool,
+  listSkillsTool,
+  doActTool
 );
 
 export * from './registry.js';

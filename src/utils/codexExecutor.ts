@@ -56,6 +56,11 @@ export interface CodexExecOptions {
   readonly codexConversationId?: string; // Native Codex conversation ID for resume
   // Change mode support
   readonly changeMode?: boolean; // Prepend format instructions for structured OLD/NEW edits
+  // New parameters (v2.0.0)
+  readonly outputSchema?: string | Record<string, any>; // JSON Schema path or inline schema
+  readonly personality?: 'pragmatic' | 'friendly'; // Communication style
+  readonly skipGitRepoCheck?: boolean; // Skip git repo validation
+  readonly outputLastMessage?: string; // Write final message to file path
 }
 
 /**
@@ -67,7 +72,7 @@ export async function executeCodexCLI(
   onProgress?: (newOutput: string) => void
 ): Promise<string> {
   const builder = new CodexCommandBuilder();
-  const { args, tempFile } = await builder.build(prompt, {
+  const { args, tempFiles, workingDir } = await builder.build(prompt, {
     ...options,
     concisePrompt: true,
     useStdinForLongPrompts: options?.useStdinForLongPrompts !== false,
@@ -80,6 +85,7 @@ export async function executeCodexCLI(
       timeoutMs: options?.timeoutMs,
       maxOutputBytes: options?.maxOutputBytes,
       retry: options?.retry,
+      cwd: workingDir,
     });
 
     if (!result.ok) {
@@ -102,9 +108,9 @@ export async function executeCodexCLI(
     Logger.error('Codex CLI execution failed:', error);
     throw error;
   } finally {
-    // Clean up temp file
-    if (tempFile) {
-      CodexCommandBuilder.cleanupTempFile(tempFile);
+    // Clean up temp files
+    for (const tf of tempFiles) {
+      CodexCommandBuilder.cleanupTempFile(tf);
     }
   }
 }
@@ -119,7 +125,7 @@ export async function executeCodex(
   onProgress?: (newOutput: string) => void
 ): Promise<CodexExecutionResult> {
   const builder = new CodexCommandBuilder();
-  const { args } = await builder.build(prompt, {
+  const { args, tempFiles, workingDir } = await builder.build(prompt, {
     ...options,
     concisePrompt: false,
     useStdinForLongPrompts: false,
@@ -133,6 +139,7 @@ export async function executeCodex(
       timeoutMs,
       maxOutputBytes: options?.maxOutputBytes,
       retry: options?.retry,
+      cwd: workingDir,
     });
 
     if (!result.ok) {
@@ -168,5 +175,10 @@ export async function executeCodex(
   } catch (error) {
     Logger.error('Codex execution failed:', error);
     throw error;
+  } finally {
+    // Clean up temp files
+    for (const tf of tempFiles) {
+      CodexCommandBuilder.cleanupTempFile(tf);
+    }
   }
 }

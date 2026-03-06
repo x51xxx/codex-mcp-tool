@@ -23,7 +23,7 @@ const askCodexArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.3-codex`),
+    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.4`),
   sandbox: z
     .boolean()
     .default(false)
@@ -130,13 +130,41 @@ const askCodexArgsSchema = z.object({
     .boolean()
     .optional()
     .describe('Clear session context before execution. Starts fresh conversation.'),
+  // New parameters (v2.0.0)
+  outputSchema: z
+    .union([z.string(), z.record(z.any())])
+    .optional()
+    .describe('JSON Schema path or inline schema to constrain output format (Codex CLI v0.95.0+)'),
+  personality: z
+    .enum(['pragmatic', 'friendly'])
+    .optional()
+    .describe(
+      'Communication style: pragmatic (concise, machine-friendly) or friendly (conversational). Codex CLI v0.94.0+'
+    ),
+  skipGitRepoCheck: z
+    .boolean()
+    .optional()
+    .describe(
+      'Skip git repository validation. Useful for non-git directories (Codex CLI v0.75.0+)'
+    ),
+  outputLastMessage: z
+    .string()
+    .optional()
+    .describe(
+      'Write final Codex message to file path. Useful for CI/CD result capture (Codex CLI v0.95.0+)'
+    ),
 });
 
 export const askCodexTool: UnifiedTool = {
   name: 'ask-codex',
   description:
-    'Execute Codex CLI with file analysis (@syntax), model selection, and safety controls. Supports changeMode.',
+    'Execute Codex CLI with file analysis (@syntax), skills ($syntax), model selection, and safety controls. Supports changeMode.',
   zodSchema: askCodexArgsSchema,
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: true,
+    openWorldHint: true,
+  },
   prompt: {
     description: 'Execute Codex CLI with optional changeMode',
   },
@@ -172,6 +200,10 @@ export const askCodexTool: UnifiedTool = {
       sessionId,
       resetSession,
       localProvider,
+      outputSchema,
+      personality,
+      skipGitRepoCheck,
+      outputLastMessage,
     } = args;
 
     if (!prompt?.trim()) {
@@ -243,6 +275,10 @@ export const askCodexTool: UnifiedTool = {
           reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'xhigh' | undefined,
           codexConversationId, // Pass conversation ID for resume
           changeMode: Boolean(changeMode), // Pass changeMode for format instructions
+          outputSchema,
+          personality: personality as 'pragmatic' | 'friendly' | undefined,
+          skipGitRepoCheck: Boolean(skipGitRepoCheck),
+          outputLastMessage: outputLastMessage as string | undefined,
         },
         onProgress
       );

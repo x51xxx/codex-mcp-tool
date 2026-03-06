@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { UnifiedTool } from './registry.js';
+import { UnifiedTool, StructuredToolResult } from './registry.js';
 import {
   listSessions,
   getSessionStats,
@@ -56,6 +56,20 @@ export const listSessionsTool: UnifiedTool = {
   name: 'list-sessions',
   description: 'List all active conversation sessions with metadata, or manage sessions',
   zodSchema: listSessionsArgsSchema,
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: true,
+    openWorldHint: false,
+  },
+  outputSchema: {
+    type: 'object',
+    properties: {
+      action: { type: 'string' },
+      sessions: { type: 'array' },
+      stats: { type: 'object' },
+    },
+    required: ['action'],
+  },
   prompt: {
     description: 'View and manage active Codex sessions',
   },
@@ -70,18 +84,48 @@ export const listSessionsTool: UnifiedTool = {
         }
         const deleted = deleteSession(sessionId as string);
         if (deleted) {
-          return `✅ Session \`${sessionId}\` deleted successfully.`;
+          return {
+            text: `✅ Session \`${sessionId}\` deleted successfully.`,
+            structuredContent: { action: 'delete', sessionId, success: true },
+          } as StructuredToolResult;
         } else {
-          return `❌ Session \`${sessionId}\` not found or already expired.`;
+          return {
+            text: `❌ Session \`${sessionId}\` not found or already expired.`,
+            structuredContent: { action: 'delete', sessionId, success: false },
+          } as StructuredToolResult;
         }
 
       case 'clear':
         clearAllSessions();
-        return '✅ All sessions cleared.';
+        return {
+          text: '✅ All sessions cleared.',
+          structuredContent: { action: 'clear', success: true },
+        } as StructuredToolResult;
 
       case 'list':
-      default:
-        return formatSessionsList();
+      default: {
+        const sessions = listSessions();
+        const stats = getSessionStats();
+        const text = formatSessionsList();
+        return {
+          text,
+          structuredContent: {
+            action: 'list',
+            sessions: sessions.map(s => ({
+              sessionId: s.sessionId,
+              workspaceId: s.workspaceId,
+              updatedAt: s.updatedAt,
+              hasResume: !!s.codexConversationId,
+            })),
+            stats: {
+              total: stats.total,
+              withResume: stats.withConversationId,
+              maxSessions: stats.maxSessions,
+              ttlHours: Math.round(stats.ttlMs / (60 * 60 * 1000)),
+            },
+          },
+        } as StructuredToolResult;
+      }
     }
   },
 };

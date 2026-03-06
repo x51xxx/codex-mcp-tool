@@ -55,7 +55,7 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 'analyze @package.json and list dependencies';
 
 // With specific model
-'use codex with model gpt-5.3-codex to analyze @algorithm.py';
+'use codex with model gpt-5.4 to analyze @algorithm.py';
 
 // Multi-turn conversations (v1.4.0+)
 'ask codex sessionId:"my-project" prompt:"explain @src/"';
@@ -86,11 +86,12 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 
 ## Models
 
-Default: `gpt-5.3-codex` with fallback → `gpt-5.2-codex` → `gpt-5.1-codex-max` → `gpt-5.2`
+Default: `gpt-5.4` with fallback → `gpt-5.3-codex` → `gpt-5.2-codex` → `gpt-5.1-codex-max` → `gpt-5.2`
 
 | Model                | Use Case                                 |
 | -------------------- | ---------------------------------------- |
-| `gpt-5.3-codex`      | Latest frontier agentic coding (default) |
+| `gpt-5.4`            | Latest frontier agentic coding (default) |
+| `gpt-5.3-codex`      | Frontier agentic coding                  |
 | `gpt-5.2-codex`      | Frontier agentic coding                  |
 | `gpt-5.1-codex-max`  | Deep and fast reasoning                  |
 | `gpt-5.1-codex-mini` | Cost-efficient quick tasks               |
@@ -164,6 +165,8 @@ codex login        # Authenticate
 Use `health` tool for diagnostics: `'use health verbose:true'`
 
 ## Migration
+
+**v2.0.x → v2.1.0:** `gpt-5.4` as new default model, updated fallback chain.
 
 **v1.5.x → v1.6.0:** Local OSS model support (`localProvider`, `oss`), `gpt-5.3-codex` default model, `xhigh` reasoning effort.
 

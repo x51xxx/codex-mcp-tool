@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.1.0] - 2026-03-06
+
+### Added
+
+- **GPT-5.4**: New default model (latest frontier agentic coding model)
+  - Updated fallback chain: `gpt-5.4` → `gpt-5.3-codex` → `gpt-5.2-codex` → `gpt-5.1-codex-max` → `gpt-5.2`
+
+### Changed
+
+- Default model: `gpt-5.3-codex` → `gpt-5.4`
+- Server version aligned to `2.1.0` in both `package.json` and `index.ts`
+
+## [2.0.0] - 2026-02-20
+
+### Added
+
+- **MCP Annotations**: `readOnlyHint`, `destructiveHint`, `idempotentHint` on all tools
+- **Structured Output**: 6 tools return `structuredContent` alongside text
+- **Completions**: Autocomplete for `model`, `methodology`, `reasoningEffort`, `sandboxMode`
+- **New Tools**: `do-act` (act-check-fix loop), `list-skills` (skill listing)
+- **New CLI Flags**: `--skip-git-repo-check`, `--output-schema`, `-o`
+- **Personality Modes**: `pragmatic`, `friendly` communication styles
+
+### Fixed
+
+- Working directory resolution — `BuildResult` now exposes `workingDir`, passed as `cwd` to `spawn()`
+- CLI flag ordering — `--skip-git-repo-check`, `--output-schema`, `-o` placed after `exec` subcommand
+
 ## [1.7.0] - 2026-02-06
 
 ### Added

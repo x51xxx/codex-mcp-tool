@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { UnifiedTool } from './registry.js';
+import { UnifiedTool, StructuredToolResult } from './registry.js';
 import { getCodexVersion, getSupportedFeatures } from '../utils/versionDetection.js';
 import { getSessionStats, getSession } from '../utils/sessionStorage.js';
 import { executeCommand } from '../utils/commandExecutor.js';
@@ -212,6 +212,22 @@ export const healthTool: UnifiedTool = {
   name: 'health',
   description: 'Check Codex CLI and session health status',
   zodSchema: healthArgsSchema,
+  annotations: {
+    readOnlyHint: true,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  outputSchema: {
+    type: 'object',
+    properties: {
+      status: { type: 'string' },
+      codexCli: { type: 'object' },
+      features: { type: 'object' },
+      sessions: { type: 'object' },
+      issues: { type: 'array' },
+    },
+    required: ['status', 'codexCli', 'features', 'sessions', 'issues'],
+  },
   prompt: {
     description: 'Diagnose Codex CLI installation, authentication, and session health',
   },
@@ -221,7 +237,11 @@ export const healthTool: UnifiedTool = {
 
     try {
       const health = await buildHealthStatus(sessionId as string | undefined, verbose as boolean);
-      return formatHealthReport(health, verbose as boolean);
+      const text = formatHealthReport(health, verbose as boolean);
+      return {
+        text,
+        structuredContent: health as unknown as Record<string, unknown>,
+      } as StructuredToolResult;
     } catch (error) {
       Logger.error('Health check failed:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);

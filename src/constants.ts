@@ -26,11 +26,12 @@ export const STATUS_MESSAGES = {
 
 // Models (Available in Codex CLI)
 export const MODELS = {
-  GPT5_3_CODEX: 'gpt-5.3-codex', // Default: Latest frontier agentic coding model
+  GPT5_4: 'gpt-5.4', // Latest frontier agentic coding model
+  GPT5_3_CODEX: 'gpt-5.3-codex', // Default: Frontier agentic coding model
   GPT5_2_CODEX: 'gpt-5.2-codex', // Frontier agentic coding model
   GPT5_1_CODEX_MAX: 'gpt-5.1-codex-max', // Codex-optimized flagship for deep and fast reasoning
   GPT5_1_CODEX_MINI: 'gpt-5.1-codex-mini', // Optimized for codex. Cheaper, faster, but less capable
-  GPT5_2: 'gpt-5.2', // Latest frontier model with improvements across knowledge, reasoning and coding
+  GPT5_2: 'gpt-5.2', // Frontier model with improvements across knowledge, reasoning and coding
 } as const;
 
 // Reasoning effort levels (Available for gpt-5.3-codex model)
@@ -40,6 +41,12 @@ export const REASONING_EFFORTS = {
   MEDIUM: 'medium', // Default: Balances speed and reasoning depth
   HIGH: 'high', // Greater reasoning depth for complex problems
   XHIGH: 'xhigh', // Extra high reasoning depth for complex problems
+} as const;
+
+// Personality modes (Codex CLI v0.94.0+)
+export const PERSONALITIES = {
+  PRAGMATIC: 'pragmatic',
+  FRIENDLY: 'friendly',
 } as const;
 
 // Sandbox modes
@@ -117,6 +124,10 @@ export const CLI = {
     ADD_DIR: '--add-dir', // Additional writable directories (Codex CLI v0.59.0+)
     // Session/Resume flags (v1.4.0+)
     RESUME: 'resume', // Resume command (replaces 'exec' when resuming)
+    // New flags (v2.0.0)
+    SKIP_GIT_REPO_CHECK: '--skip-git-repo-check', // Skip git repo check (Codex CLI v0.75.0+)
+    OUTPUT_SCHEMA: '--output-schema', // JSON Schema constraint (Codex CLI v0.95.0+)
+    OUTPUT_LAST_MESSAGE: '-o', // Write final message to file (Codex CLI v0.95.0+)
   },
   // Default values
   DEFAULTS: {
@@ -170,6 +181,17 @@ export interface ToolArguments {
   addDirs?: string[]; // Additional writable directories beyond workspace
   toolOutputTokenLimit?: number; // Max tokens for tool outputs (100-10,000)
   reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh'; // Reasoning depth level
+
+  // New parameters (v2.0.0)
+  outputSchema?: string | Record<string, any>; // JSON Schema path or inline schema
+  personality?: 'pragmatic' | 'friendly'; // Communication style
+  skipGitRepoCheck?: boolean; // Skip git repo validation
+  outputLastMessage?: string; // Write final message to file path
+
+  // Do-Act tool
+  verify?: { command: string; exitCode?: number; timeout?: number };
+  maxRetries?: number;
+  stopOnFailure?: boolean;
 
   // Brainstorming tool
   methodology?: string; // Brainstorming framework to use

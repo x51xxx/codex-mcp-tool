@@ -8,11 +8,13 @@ import {
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
   SetLevelRequestSchema,
+  CompleteRequestSchema,
   CallToolRequest,
   ListToolsRequest,
   ListPromptsRequest,
   GetPromptRequest,
   SetLevelRequest,
+  CompleteRequest,
   Tool,
   Prompt,
   GetPromptResult,
@@ -28,17 +30,20 @@ import {
   toolExists,
   getPromptMessage,
 } from './tools/index.js';
+import type { StructuredToolResult } from './tools/registry.js';
+import { getCompletionValues } from './utils/completions.js';
 
 const server = new Server(
   {
     name: 'codex-cli-mcp',
-    version: '1.5.1',
+    version: '2.1.0',
   },
   {
     capabilities: {
       tools: {},
       prompts: {},
       logging: {},
+      completions: {},
     },
   }
 );
@@ -206,15 +211,28 @@ server.setRequestHandler(
         // Stop progress updates
         stopProgressUpdates(progressData, true);
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: result,
-            },
-          ],
-          isError: false,
-        };
+        if (typeof result === 'string') {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: result,
+              },
+            ],
+            isError: false,
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: result.text,
+              },
+            ],
+            structuredContent: result.structuredContent,
+            isError: false,
+          } as CallToolResult;
+        }
       } catch (error) {
         // Stop progress updates on error
         stopProgressUpdates(progressData, false);
@@ -277,6 +295,13 @@ server.setRequestHandler(
     };
   }
 );
+
+// completion/complete
+server.setRequestHandler(CompleteRequestSchema, async (request: CompleteRequest) => {
+  const { argument } = request.params;
+  const completion = getCompletionValues(argument.name, argument.value);
+  return { completion };
+});
 
 // Start the server
 async function main() {

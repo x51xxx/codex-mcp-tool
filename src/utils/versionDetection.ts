@@ -18,12 +18,21 @@ export interface CodexVersion {
  * Feature availability by version
  */
 export const FEATURE_VERSIONS = {
+  // Existing
+  RESUME: { major: 0, minor: 36, patch: 0 }, // codex resume command (v1.4.0+)
   NATIVE_SEARCH: { major: 0, minor: 52, patch: 0 }, // --search flag
+  GPT5_1_MODELS: { major: 0, minor: 56, patch: 0 }, // GPT-5.1 model family
   TOOL_TOKEN_LIMIT: { major: 0, minor: 59, patch: 0 }, // tool_output_token_limit
   ADD_DIR: { major: 0, minor: 59, patch: 0 }, // --add-dir flag
   WINDOWS_AGENT: { major: 0, minor: 59, patch: 0 }, // Windows agent mode
-  GPT5_1_MODELS: { major: 0, minor: 56, patch: 0 }, // GPT-5.1 model family
-  RESUME: { major: 0, minor: 36, patch: 0 }, // codex resume command (v1.4.0+)
+  // New (v2.0.0)
+  SKIP_GIT_CHECK: { major: 0, minor: 75, patch: 0 }, // --skip-git-repo-check
+  SKILLS: { major: 0, minor: 90, patch: 0 }, // .agents/skills/ support
+  PERSONALITY: { major: 0, minor: 94, patch: 0 }, // personality config
+  OUTPUT_SCHEMA: { major: 0, minor: 95, patch: 0 }, // --output-schema
+  OUTPUT_LAST_MSG: { major: 0, minor: 95, patch: 0 }, // -o / --output-last-message
+  MEMORY: { major: 0, minor: 97, patch: 0 }, // automatic memory
+  STEER_MODE: { major: 0, minor: 98, patch: 0 }, // interactive steer mode
 } as const;
 
 // Version cache for performance optimization
@@ -195,6 +204,38 @@ export async function supportsGPT51Models(): Promise<boolean> {
  */
 export async function supportsResume(): Promise<boolean> {
   return await isFeatureAvailable('RESUME');
+}
+
+/**
+ * Check if --skip-git-repo-check flag is available
+ * @returns Promise<boolean> True if --skip-git-repo-check flag is supported
+ */
+export async function supportsSkipGitCheck(): Promise<boolean> {
+  return await isFeatureAvailable('SKIP_GIT_CHECK');
+}
+
+/**
+ * Check if personality config is available
+ * @returns Promise<boolean> True if personality config is supported
+ */
+export async function supportsPersonality(): Promise<boolean> {
+  return await isFeatureAvailable('PERSONALITY');
+}
+
+/**
+ * Check if --output-schema flag is available
+ * @returns Promise<boolean> True if --output-schema flag is supported
+ */
+export async function supportsOutputSchema(): Promise<boolean> {
+  return await isFeatureAvailable('OUTPUT_SCHEMA');
+}
+
+/**
+ * Check if -o / --output-last-message flag is available
+ * @returns Promise<boolean> True if output-last-message flag is supported
+ */
+export async function supportsOutputLastMessage(): Promise<boolean> {
+  return await isFeatureAvailable('OUTPUT_LAST_MSG');
 }
 
 /**

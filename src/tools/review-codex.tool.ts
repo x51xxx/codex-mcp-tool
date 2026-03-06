@@ -1,96 +1,133 @@
 import { z } from 'zod';
 import { UnifiedTool } from './registry.js';
 import { executeCommandDetailed } from '../utils/commandExecutor.js';
-import { parseReviewOutput, formatReviewFindings } from '../utils/reviewParser.js';
-import { MODELS } from '../constants.js';
+import { MODELS, CLI } from '../constants.js';
 import { Logger } from '../utils/logger.js';
+import { resolveWorkingDirectory } from '../utils/workingDirResolver.js';
+import { getModelWithFallback } from '../utils/modelDetection.js';
 
 const reviewCodexArgsSchema = z.object({
   prompt: z
     .string()
-    .default('/review')
-    .describe('Review command or additional context. Default: /review'),
+    .optional()
+    .describe(
+      'Custom review instructions or focus areas (cannot be used with uncommitted=true; use base/commit review instead)'
+    ),
+  uncommitted: z
+    .boolean()
+    .optional()
+    .describe(
+      'Review staged, unstaged, and untracked changes (working tree) - cannot be combined with custom prompt'
+    ),
+  base: z
+    .string()
+    .optional()
+    .describe('Review changes against a specific base branch (e.g., "main", "develop")'),
+  commit: z.string().optional().describe('Review the changes introduced by a specific commit SHA'),
+  title: z.string().optional().describe('Optional title to display in the review summary'),
   model: z
     .string()
     .optional()
     .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: uses Codex's default`),
+  workingDir: z
+    .string()
+    .optional()
+    .describe('Working directory to run the review in (passed via -C as a global Codex option)'),
   timeout: z.number().optional().describe('Maximum execution time in milliseconds'),
 });
 
 export const reviewCodexTool: UnifiedTool = {
   name: 'review-changes',
-  description: "Run Codex's native /review command to analyze current git changes",
+  description:
+    'Run a code review against the current repository using Codex CLI native review subcommand',
   zodSchema: reviewCodexArgsSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   prompt: {
     description: "Execute Codex's built-in code review on current changes",
   },
   category: 'codex',
   execute: async (args, onProgress) => {
-    const { prompt, model, timeout } = args;
+    const { prompt, uncommitted, base, commit, title, model, workingDir, timeout } = args;
+
+    // Validation: prompt and uncommitted are mutually exclusive
+    if (prompt && uncommitted) {
+      return '❌ **Error**: The review prompt cannot be combined with uncommitted=true. Use a base/commit review or omit the prompt.';
+    }
 
     try {
-      // Step 1: Prepare the review command
       if (onProgress) {
-        onProgress('🔍 Launching Codex native review...');
+        onProgress('Starting code review...');
       }
 
-      // Build command arguments for Codex CLI
-      const codexArgs = ['exec'];
+      // Build command arguments for codex review
+      const cmdArgs: string[] = [];
 
-      // Add model if specified
-      if (model) {
-        codexArgs.push('-m', model);
+      // Global flags (before subcommand)
+      const resolvedDir = resolveWorkingDirectory({ workingDir: workingDir as string });
+      if (resolvedDir) {
+        cmdArgs.push(CLI.FLAGS.WORKING_DIR, resolvedDir);
       }
 
-      // The review command - either /review or custom prompt
-      const reviewPrompt = prompt?.startsWith('/') ? prompt : `/review ${prompt || ''}`.trim();
-      codexArgs.push(reviewPrompt);
+      // Model selection via config
+      const selectedModel = model
+        ? await getModelWithFallback(model as string)
+        : await getModelWithFallback();
+      cmdArgs.push(CLI.FLAGS.CONFIG, `model="${selectedModel}"`);
+
+      // The review subcommand
+      cmdArgs.push('review');
+
+      // Review-specific flags
+      if (uncommitted) {
+        cmdArgs.push('--uncommitted');
+      }
+
+      if (base) {
+        cmdArgs.push('--base', base as string);
+      }
+
+      if (commit) {
+        cmdArgs.push('--commit', commit as string);
+      }
+
+      if (title) {
+        cmdArgs.push('--title', title as string);
+      }
+
+      // Custom review instructions (positional arg after flags)
+      if (prompt) {
+        cmdArgs.push(prompt as string);
+      }
 
       if (onProgress) {
-        onProgress(`Executing: codex ${codexArgs.join(' ')}`);
+        onProgress(`Executing: codex ${cmdArgs.join(' ')}`);
       }
 
-      // Step 2: Execute Codex with the review command
-      const result = await executeCommandDetailed('codex', codexArgs, {
-        timeoutMs: timeout || 180000, // 3 minutes default for review
+      // Execute codex review
+      const result = await executeCommandDetailed(CLI.COMMANDS.CODEX, cmdArgs, {
+        onProgress,
+        timeoutMs: (timeout as number) || 180000, // 3 minutes default
+        cwd: resolvedDir || undefined,
       });
 
-      if (!result.ok) {
+      // Codex CLI may output to stderr, so check both
+      const response = result.stdout || result.stderr || 'No review output from Codex';
+
+      if (!result.ok && !response) {
         throw new Error(result.stderr || 'Codex review command failed');
       }
 
-      const response = result.stdout;
-
-      // Step 3: Parse and format the review output
-      if (onProgress) {
-        onProgress('📝 Processing review results...');
-      }
-
-      // Try to parse structured output
-      const reviewOutput = parseReviewOutput(response);
-
-      if (reviewOutput) {
-        // Format the structured review
-        const formattedReview = formatReviewFindings(reviewOutput);
-
-        // Add summary statistics
-        const stats = [
-          `📊 **Review Statistics:**`,
-          `- Issues found: ${reviewOutput.findings.length}`,
-          `- High priority issues: ${reviewOutput.findings.filter(f => f.priority === 0 || f.priority === 1).length}`,
-        ];
-
-        return `${formattedReview}\n\n${stats.join('\n')}`;
-      } else {
-        // Return Codex's raw output if not in JSON format
-        // Codex might return formatted text directly
-        return `## Codex Review Results\n\n${response}`;
-      }
+      return `## Code Review Results\n\n**Model:** ${selectedModel}\n${base ? `**Base:** ${base}\n` : ''}${commit ? `**Commit:** ${commit}\n` : ''}\n${response}`;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       Logger.error('Review failed:', error);
 
-      if (errorMessage.includes('command not found')) {
+      if (errorMessage.includes('command not found') || errorMessage.includes('not found')) {
         return '❌ **Error**: Codex CLI not found. Install with: npm install -g @openai/codex';
       }
 
@@ -98,11 +135,7 @@ export const reviewCodexTool: UnifiedTool = {
         return '❌ **Authentication Failed**: Run "codex login" first';
       }
 
-      if (errorMessage.includes('slash command')) {
-        return "❌ **Error**: Review command not available. Make sure you're using the latest Codex version.";
-      }
-
-      return `❌ **Review Failed**: ${errorMessage}\n\nTip: Try running "codex exec /review" directly to test.`;
+      return `❌ **Review Failed**: ${errorMessage}`;
     }
   },
 };

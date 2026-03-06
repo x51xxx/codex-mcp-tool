@@ -7,6 +7,10 @@ import {
   supportsAddDir,
   supportsToolTokenLimit,
   supportsResume,
+  supportsSkipGitCheck,
+  supportsPersonality,
+  supportsOutputSchema,
+  supportsOutputLastMessage,
 } from './versionDetection.js';
 import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
@@ -43,6 +47,11 @@ export interface CodexCommandBuilderOptions {
   readonly codexConversationId?: string; // Native Codex conversation ID for resume
   // Change mode support
   readonly changeMode?: boolean; // Prepend format instructions for structured OLD/NEW edits
+  // New parameters (v2.0.0)
+  readonly outputSchema?: string | Record<string, any>; // JSON Schema path or inline schema
+  readonly personality?: 'pragmatic' | 'friendly'; // Communication style
+  readonly skipGitRepoCheck?: boolean; // Skip git repo validation
+  readonly outputLastMessage?: string; // Write final message to file path
 }
 
 /**
@@ -50,9 +59,10 @@ export interface CodexCommandBuilderOptions {
  */
 export interface BuildResult {
   args: string[];
-  tempFile?: string;
+  tempFiles: string[];
   finalPrompt: string;
   useResume: boolean; // Whether resume command is being used
+  workingDir?: string; // Resolved working directory for spawn cwd
 }
 
 /**
@@ -61,7 +71,9 @@ export interface BuildResult {
  */
 export class CodexCommandBuilder {
   private args: string[] = [];
+  private tempFiles: string[] = [];
   private useResumeMode: boolean = false;
+  private resolvedWorkingDir?: string;
 
   /**
    * Build a complete Codex CLI command with all options
@@ -71,7 +83,9 @@ export class CodexCommandBuilder {
    */
   async build(prompt: string, options?: CodexCommandBuilderOptions): Promise<BuildResult> {
     this.args = []; // Reset args for fresh build
+    this.tempFiles = [];
     this.useResumeMode = false;
+    this.resolvedWorkingDir = undefined;
 
     // 1. Validation
     this.validateOptions(options);
@@ -107,6 +121,9 @@ export class CodexCommandBuilder {
 
     // 10. Reasoning effort level
     this.addReasoningEffort(options);
+
+    // 10b. Personality
+    await this.addPersonality(options);
 
     // 11. Configuration
     if (options?.config) {
@@ -150,10 +167,14 @@ export class CodexCommandBuilder {
         // Only set model_provider when localProvider is explicitly specified.
         if (options.localProvider) {
           this.args.push(CLI.FLAGS.CONFIG, `model_provider=${options.localProvider}`);
-          Logger.debug(`Resume mode: using -c model_provider=${options.localProvider} (--oss not supported)`);
+          Logger.debug(
+            `Resume mode: using -c model_provider=${options.localProvider} (--oss not supported)`
+          );
         } else {
           // oss: true without explicit localProvider — let resumed session keep its original provider
-          Logger.debug('Resume mode: oss enabled but no localProvider specified, using session defaults');
+          Logger.debug(
+            'Resume mode: oss enabled but no localProvider specified, using session defaults'
+          );
         }
       } else {
         this.args.push(CLI.FLAGS.OSS);
@@ -167,6 +188,11 @@ export class CodexCommandBuilder {
         }
       }
     }
+
+    // 14c. Exec-subcommand flags — must come AFTER exec (Codex CLI parses these as exec options)
+    await this.addSkipGitCheck(options);
+    await this.addOutputSchema(options);
+    await this.addOutputLastMessage(options);
 
     // 15. Handle prompt (concise mode, stdin for large prompts)
     return this.handlePrompt(prompt, options);
@@ -270,6 +296,8 @@ export class CodexCommandBuilder {
     });
 
     if (resolvedWorkingDir) {
+      // Store for spawn cwd
+      this.resolvedWorkingDir = resolvedWorkingDir;
       // Use appropriate flag based on mode
       const flag = options?.cd !== undefined ? CLI.FLAGS.CD : CLI.FLAGS.WORKING_DIR;
       this.args.push(flag, resolvedWorkingDir);
@@ -367,11 +395,95 @@ export class CodexCommandBuilder {
   }
 
   /**
+   * Add --skip-git-repo-check flag (v0.75.0+)
+   */
+  private async addSkipGitCheck(options?: CodexCommandBuilderOptions): Promise<void> {
+    if (options?.skipGitRepoCheck) {
+      const hasFlag = await supportsSkipGitCheck();
+      if (hasFlag) {
+        this.args.push(CLI.FLAGS.SKIP_GIT_REPO_CHECK);
+        Logger.debug('Using --skip-git-repo-check flag (Codex CLI v0.75.0+)');
+      } else {
+        Logger.warn(
+          'Skip git repo check requested but not supported (requires Codex CLI v0.75.0+). Ignoring.'
+        );
+      }
+    }
+  }
+
+  /**
+   * Add personality configuration (v0.94.0+)
+   */
+  private async addPersonality(options?: CodexCommandBuilderOptions): Promise<void> {
+    if (options?.personality) {
+      const hasFlag = await supportsPersonality();
+      if (hasFlag) {
+        this.args.push(CLI.FLAGS.CONFIG, `personality="${options.personality}"`);
+        Logger.debug(`Using personality: ${options.personality}`);
+      } else {
+        Logger.warn(
+          `Personality config requested but not supported (requires Codex CLI v0.94.0+). Ignoring.`
+        );
+      }
+    }
+  }
+
+  /**
+   * Add --output-schema flag (v0.95.0+)
+   * Accepts a file path (string) or inline schema (object → written to temp file)
+   */
+  private async addOutputSchema(options?: CodexCommandBuilderOptions): Promise<void> {
+    if (!options?.outputSchema) return;
+
+    const hasFlag = await supportsOutputSchema();
+    if (!hasFlag) {
+      Logger.warn(
+        'Output schema requested but not supported (requires Codex CLI v0.95.0+). Ignoring.'
+      );
+      return;
+    }
+
+    if (typeof options.outputSchema === 'string') {
+      // String → pass as file path directly
+      this.args.push(CLI.FLAGS.OUTPUT_SCHEMA, options.outputSchema);
+      Logger.debug(`Using output schema file: ${options.outputSchema}`);
+    } else {
+      // Object → write to temp file
+      const tempFileName = `codex-schema-${randomBytes(8).toString('hex')}.json`;
+      const tempFilePath = join(tmpdir(), tempFileName);
+      try {
+        writeFileSync(tempFilePath, JSON.stringify(options.outputSchema), 'utf8');
+        this.args.push(CLI.FLAGS.OUTPUT_SCHEMA, tempFilePath);
+        this.tempFiles.push(tempFilePath);
+        Logger.debug(`Using output schema (written to temp file): ${tempFilePath}`);
+      } catch (error) {
+        Logger.warn(`Failed to write output schema to temp file: ${error}. Ignoring.`);
+      }
+    }
+  }
+
+  /**
+   * Add -o / --output-last-message flag (v0.95.0+)
+   */
+  private async addOutputLastMessage(options?: CodexCommandBuilderOptions): Promise<void> {
+    if (options?.outputLastMessage) {
+      const hasFlag = await supportsOutputLastMessage();
+      if (hasFlag) {
+        this.args.push(CLI.FLAGS.OUTPUT_LAST_MESSAGE, options.outputLastMessage);
+        Logger.debug(`Using output-last-message: ${options.outputLastMessage}`);
+      } else {
+        Logger.warn(
+          'Output last message requested but not supported (requires Codex CLI v0.95.0+). Ignoring.'
+        );
+      }
+    }
+  }
+
+  /**
    * Handle prompt with concise mode and stdin for large prompts
    */
   private handlePrompt(prompt: string, options?: CodexCommandBuilderOptions): BuildResult {
     let finalPrompt = prompt;
-    let tempFile: string | undefined;
 
     // Add changeMode format instruction so Codex CLI outputs structured edits
     if (options?.changeMode) {
@@ -412,7 +524,7 @@ export class CodexCommandBuilder {
 
         // Use stdin redirection via special prompt format
         this.args.push(`@${tempFilePath}`);
-        tempFile = tempFilePath;
+        this.tempFiles.push(tempFilePath);
       } catch (error) {
         Logger.warn(
           `Failed to create temp file for large prompt: ${error}. Proceeding with direct prompt.`
@@ -426,9 +538,10 @@ export class CodexCommandBuilder {
 
     return {
       args: this.args,
-      tempFile,
+      tempFiles: this.tempFiles,
       finalPrompt,
       useResume: this.useResumeMode,
+      workingDir: this.resolvedWorkingDir,
     };
   }
 
