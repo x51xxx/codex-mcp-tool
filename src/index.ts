@@ -30,13 +30,12 @@ import {
   toolExists,
   getPromptMessage,
 } from './tools/index.js';
-import type { StructuredToolResult } from './tools/registry.js';
 import { getCompletionValues } from './utils/completions.js';
 
 const server = new Server(
   {
     name: 'codex-cli-mcp',
-    version: '2.1.0',
+    version: '2.1.1',
   },
   {
     capabilities: {
@@ -177,7 +176,7 @@ server.setRequestHandler(
 // tools/list
 server.setRequestHandler(
   ListToolsRequestSchema,
-  async (request: ListToolsRequest): Promise<{ tools: Tool[] }> => {
+  async (_request: ListToolsRequest): Promise<{ tools: Tool[] }> => {
     return { tools: getToolDefinitions() as unknown as Tool[] };
   }
 );
@@ -261,7 +260,7 @@ server.setRequestHandler(
 server.setRequestHandler(
   ListPromptsRequestSchema,
   async (
-    request: ListPromptsRequest
+    _request: ListPromptsRequest
   ): Promise<{
     prompts: Prompt[];
   }> => {

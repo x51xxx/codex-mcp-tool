@@ -19,7 +19,7 @@ export const pingTool: UnifiedTool = {
     description: 'Echo test message with structured response.',
   },
   category: 'simple',
-  execute: async (args, onProgress) => {
+  execute: async (args, _onProgress) => {
     const message = args.prompt || args.message || 'Pong!';
     // Return message directly to avoid cross-platform issues with echo command
     return message as string;
@@ -74,7 +74,7 @@ export const versionTool: UnifiedTool = {
   execute: async (args, onProgress) => {
     const nodeVersion = process.version;
     const platform = process.platform;
-    const mcpServer = '@trishchuk/codex-mcp-tool v2.1.0';
+    const mcpServer = '@trishchuk/codex-mcp-tool v2.1.1';
 
     try {
       const codexVersion = await executeCommand('codex', ['--version'], onProgress);

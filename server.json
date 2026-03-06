@@ -1,0 +1,40 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.x51xxx/codex-mcp-tool",
+  "description": "MCP server bridging Claude, Cursor, and other AI assistants to OpenAI Codex CLI. Enables non-interactive code analysis, review, refactoring, brainstorming, and batch operations with sandboxed execution and structured output.",
+  "repository": {
+    "url": "https://github.com/x51xxx/codex-mcp-tool",
+    "source": "github"
+  },
+  "version": "2.1.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@trishchuk/codex-mcp-tool",
+      "version": "2.1.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "CODEX_MCP_CWD",
+          "description": "Override working directory for all tool calls",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "CODEX_SESSION_TTL_MS",
+          "description": "Session time-to-live in milliseconds (default: 86400000 = 24h)",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "CODEX_MAX_SESSIONS",
+          "description": "Maximum concurrent sessions (default: 50)",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

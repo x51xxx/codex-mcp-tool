@@ -9,6 +9,7 @@
 export enum ErrorCategory {
   CLI_NOT_FOUND = 'CLI_NOT_FOUND',
   AUTHENTICATION = 'AUTHENTICATION',
+  MODEL = 'MODEL',
   RATE_LIMIT = 'RATE_LIMIT',
   TIMEOUT = 'TIMEOUT',
   SANDBOX = 'SANDBOX',
@@ -28,6 +29,10 @@ export const ERROR_MESSAGES: Record<ErrorCategory, { title: string; description:
   [ErrorCategory.AUTHENTICATION]: {
     title: 'Authentication Failed',
     description: 'API key is invalid or authentication is required.',
+  },
+  [ErrorCategory.MODEL]: {
+    title: 'Model Error',
+    description: 'The requested model is unavailable or not supported.',
   },
   [ErrorCategory.RATE_LIMIT]: {
     title: 'Rate Limit Exceeded',
@@ -68,6 +73,12 @@ export const ERROR_SOLUTIONS: Record<ErrorCategory, string[]> = {
     'Run `codex login` to authenticate',
     'Set `OPENAI_API_KEY` environment variable',
     'Verify API key has Codex access in OpenAI dashboard',
+  ],
+  [ErrorCategory.MODEL]: [
+    'Omit the model parameter to use the default model',
+    'Check available models in your OpenAI account',
+    'Verify your subscription supports the requested model',
+    'Try a different model: gpt-5.4, gpt-5.3-codex, gpt-5.2-codex',
   ],
   [ErrorCategory.RATE_LIMIT]: [
     'Wait a few minutes before retrying',
@@ -180,10 +191,30 @@ export class CodexError extends Error {
 export function classifyError(errorMessage: string): ErrorCategory {
   const message = errorMessage.toLowerCase();
 
-  // CLI not found
+  // Model errors — checked first because model messages often contain
+  // words like "not found", "access", "sandbox" that would false-match other categories
+  if (
+    message.includes('model not found') ||
+    message.includes('model_not_found') ||
+    message.includes('does not have access to model') ||
+    message.includes('access to model') ||
+    message.includes('invalid model') ||
+    message.includes('unsupported model') ||
+    message.includes('model is not available') ||
+    message.includes('model not available') ||
+    message.includes('not supported for this model') ||
+    message.includes('does not exist') ||
+    /\bmodel\b.{0,50}\b(?:fail|error|reject|unavailable|unknown)\b/.test(message) ||
+    /\b(?:fail|error|reject|unavailable|unknown)\b.{0,50}\bmodel\b/.test(message)
+  ) {
+    return ErrorCategory.MODEL;
+  }
+
+  // CLI not found — use specific phrases to avoid matching "model not found" etc.
   if (
     message.includes('command not found') ||
-    message.includes('not found') ||
+    message.includes('codex: not found') ||
+    message.includes('codex not found') ||
     message.includes('enoent')
   ) {
     return ErrorCategory.CLI_NOT_FOUND;
@@ -218,12 +249,16 @@ export function classifyError(errorMessage: string): ErrorCategory {
     return ErrorCategory.TIMEOUT;
   }
 
-  // Sandbox/Permission
+  // Sandbox/Permission — use specific phrases to avoid false positives
+  // (e.g. CLI output containing "--sandbox" flag or "access" in model errors)
   if (
-    message.includes('sandbox') ||
-    message.includes('permission') ||
-    message.includes('denied') ||
-    message.includes('access')
+    message.includes('sandbox violation') ||
+    message.includes('sandbox restriction') ||
+    message.includes('sandbox blocked') ||
+    message.includes('sandbox error') ||
+    message.includes('permission denied') ||
+    message.includes('access denied') ||
+    message.includes('operation not permitted')
   ) {
     return ErrorCategory.SANDBOX;
   }
@@ -302,6 +337,7 @@ export function getRetryDelay(error: CodexError | ErrorCategory, attempt: number
     [ErrorCategory.NETWORK]: 10000, // 10 seconds
     [ErrorCategory.CLI_NOT_FOUND]: 0,
     [ErrorCategory.AUTHENTICATION]: 0,
+    [ErrorCategory.MODEL]: 0,
     [ErrorCategory.SANDBOX]: 0,
     [ErrorCategory.SESSION]: 0,
     [ErrorCategory.UNKNOWN]: 5000,

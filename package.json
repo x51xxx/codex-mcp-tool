@@ -1,6 +1,7 @@
 {
   "name": "@trishchuk/codex-mcp-tool",
-  "version": "2.1.0",
+  "version": "2.1.1",
+  "mcpName": "io.github.x51xxx/codex-mcp-tool",
   "description": "MCP server for Codex CLI integration",
   "type": "module",
   "main": "dist/index.js",
@@ -22,17 +23,25 @@
   },
   "keywords": [
     "mcp",
+    "mcp-server",
+    "model-context-protocol",
     "modelcontextprotocol",
     "codex",
-    "cli",
+    "codex-cli",
+    "openai",
+    "claude",
+    "cursor",
     "ai",
     "llm",
+    "cli",
     "server",
     "tool",
+    "code-review",
+    "code-analysis",
+    "refactoring",
+    "automation",
     "typescript",
-    "nodejs",
-    "integration",
-    "automation"
+    "nodejs"
   ],
   "author": "Taras Trishchuk",
   "license": "MIT",
@@ -49,6 +58,7 @@
   },
   "files": [
     "dist/",
+    "server.json",
     "README.md",
     "LICENSE"
   ],
