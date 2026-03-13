@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.x51xxx/codex-mcp-tool",
-  "description": "MCP server bridging Claude, Cursor, and other AI assistants to OpenAI Codex CLI. Enables non-interactive code analysis, review, refactoring, brainstorming, and batch operations with sandboxed execution and structured output.",
+  "description": "MCP server bridging AI assistants to OpenAI Codex CLI for code analysis and review",
   "repository": {
     "url": "https://github.com/x51xxx/codex-mcp-tool",
     "source": "github"
   },
-  "version": "2.1.1",
+  "version": "2.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@trishchuk/codex-mcp-tool",
-      "version": "2.1.1",
+      "version": "2.2.0",
       "transport": {
         "type": "stdio"
       },

@@ -1,4 +1,4 @@
-# Codex MCP Tool
+# Codex MCP Server
 
 <div align="center">
 

@@ -1,6 +1,6 @@
 {
   "name": "@trishchuk/codex-mcp-tool",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "mcpName": "io.github.x51xxx/codex-mcp-tool",
   "description": "MCP server for Codex CLI integration",
   "type": "module",

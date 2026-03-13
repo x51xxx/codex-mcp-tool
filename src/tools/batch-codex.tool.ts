@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { UnifiedTool, StructuredToolResult } from './registry.js';
 import { executeCodex } from '../utils/codexExecutor.js';
-import { ERROR_MESSAGES, STATUS_MESSAGES, MODELS, SANDBOX_MODES } from '../constants.js';
+import { MODELS, SANDBOX_MODES } from '../constants.js';
 
 // Define task type for batch operations
 const batchTaskSchema = z.object({
@@ -143,7 +143,7 @@ export const batchCodexTool: UnifiedTool = {
         results.push({
           task: taskPrompt,
           status: 'success',
-          output: result.output.substring(0, 500), // Truncate for summary
+          output: (result.output.trim() || result.stderr.trim() || result.output).substring(0, 500), // Truncate for summary
         });
         successCount++;
 

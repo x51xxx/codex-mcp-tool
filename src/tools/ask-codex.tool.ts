@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { UnifiedTool } from './registry.js';
 import { executeCodexCLI, executeCodex, CodexExecutionResult } from '../utils/codexExecutor.js';
 import { processChangeModeOutput } from '../utils/changeModeRunner.js';
-import { formatCodexResponseForMCP } from '../utils/outputParser.js';
+import { formatCodexResponseForMCP, ResponseMode } from '../utils/outputParser.js';
 import { MODELS, APPROVAL_POLICIES, ERROR_MESSAGES } from '../constants.js';
 import { createCodexError, formatErrorForUser } from '../utils/errorTypes.js';
 import {
@@ -153,6 +153,12 @@ const askCodexArgsSchema = z.object({
     .describe(
       'Write final Codex message to file path. Useful for CI/CD result capture (Codex CLI v0.95.0+)'
     ),
+  responseMode: z
+    .enum(['clean', 'full'])
+    .default('clean')
+    .describe(
+      'Response verbosity: "clean" returns only the final answer (default), "full" returns the complete execution log including thinking, tool calls, and agent activity'
+    ),
 });
 
 export const askCodexTool: UnifiedTool = {
@@ -204,6 +210,7 @@ export const askCodexTool: UnifiedTool = {
       personality,
       skipGitRepoCheck,
       outputLastMessage,
+      responseMode,
     } = args;
 
     if (!prompt?.trim()) {
@@ -310,10 +317,13 @@ export const askCodexTool: UnifiedTool = {
       }
 
       // Format response with enhanced output parsing
+      // Pass stderr for metadata extraction (Codex CLI v0.114.0+ sends metadata to stderr)
       return formatCodexResponseForMCP(
         result.output,
         includeThinking as boolean,
-        includeMetadata as boolean
+        includeMetadata as boolean,
+        result.stderr,
+        (responseMode as ResponseMode) || 'clean'
       );
     } catch (error) {
       // Use structured error handling

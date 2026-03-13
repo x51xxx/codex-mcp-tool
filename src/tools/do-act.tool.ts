@@ -165,7 +165,7 @@ export const doActTool: UnifiedTool = {
       let codexOutput: string;
       try {
         const result = await executeCodex(currentPrompt, codexOpts, onProgress);
-        codexOutput = result.output;
+        codexOutput = result.output.trim() || result.stderr.trim() || result.output;
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
         attempts.push({ attempt: i, codexOutput: `Error: ${errMsg}` });

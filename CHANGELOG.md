@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.2.0] - 2026-03-13
+
+### Added
+
+- **Response Mode**: New `responseMode` parameter for `ask-codex` tool
+  - `clean` (default) — returns only the final answer
+  - `full` — returns complete execution log including thinking, tool calls, agent activity, and final response
+  - Gives master agents full visibility into Codex CLI reasoning and actions when needed
+
+### Fixed
+
+- **Empty responses with Codex CLI v0.114.0+**: Fixed critical output parsing bug
+  - Codex CLI v0.114.0+ sends interactive output (header, metadata, thinking, tool executions) to stderr and only the clean final response to stdout
+  - Old parser expected everything in stdout, causing empty `**Response:**` for complex queries
+  - Parser now auto-detects clean stdout mode and extracts metadata/tokens from stderr
+  - Falls back to stderr parsing when stdout is empty (e.g., long-running agent queries)
+- **Aggressive content filtering in output parser**: Section markers (`codex`, `assistant`, `user`) now match only standalone lines, not content containing those words
+  - Previously, any response line containing "codex" was silently filtered out
+- **Missing section handling**: Added `user`, `exec`, `collab`, `mcp:`, `Plan`, `spawn_agent` as recognized sections to prevent content leaking between sections
+- **Token parsing**: Now handles space-separated token counts (e.g., "7 951") and tokens without colon separator
+- **stdout/stderr fallback in do-act and batch-codex**: These tools now fall back to stderr when stdout is empty
+
+## [2.1.1] - 2026-03-06
+
+### Fixed
+
+- Error classification improvements and MCP registry metadata updates
+
 ## [2.1.0] - 2026-03-06
 
 ### Added

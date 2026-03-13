@@ -1,5 +1,8 @@
 import { Logger } from './logger.js';
 
+// Response mode: clean = final answer only, full = complete execution log
+export type ResponseMode = 'clean' | 'full';
+
 // Codex Output Interface
 export interface CodexOutput {
   metadata: {
@@ -19,9 +22,66 @@ export interface CodexOutput {
   tokensUsed?: number;
   timestamps: string[];
   rawOutput: string;
+  rawStderr?: string;
 }
 
-export function parseCodexOutput(rawOutput: string): CodexOutput {
+/**
+ * Detect whether raw output contains Codex CLI section markers (interactive format).
+ * Codex CLI v0.114.0+ sends interactive output (header, metadata, thinking, tool executions)
+ * to stderr, while stdout contains only the clean final response.
+ */
+function hasInteractiveFormat(rawOutput: string): boolean {
+  return rawOutput.includes('OpenAI Codex') || rawOutput.includes('--------');
+}
+
+export function parseCodexOutput(rawOutput: string, rawStderr?: string): CodexOutput {
+  // Codex CLI v0.114.0+: stdout = clean response, stderr = interactive output.
+  // If stdout has no section markers, treat it as the clean final response directly.
+  if (!hasInteractiveFormat(rawOutput) && rawOutput.trim()) {
+    // Extract tokens and metadata from stderr if available
+    let tokensUsed: number | undefined;
+    let metadata: any = {};
+    if (rawStderr) {
+      const tokensMatch = rawStderr.match(/tokens used[:\s]*(\d[\d\s]*\d|\d+)/);
+      if (tokensMatch) {
+        tokensUsed = parseInt(tokensMatch[1].replace(/\s/g, ''), 10);
+      }
+      // Parse metadata from stderr (interactive format)
+      if (hasInteractiveFormat(rawStderr)) {
+        const parsed = parseInteractiveOutput(rawStderr);
+        metadata = parsed.metadata;
+      }
+    }
+
+    const output: CodexOutput = {
+      metadata,
+      userInstructions: '',
+      thinking: undefined,
+      response: rawOutput.trim(),
+      tokensUsed,
+      timestamps: [],
+      rawOutput,
+      rawStderr,
+    };
+
+    Logger.codexResponse(output.response, tokensUsed);
+    return output;
+  }
+
+  // Fallback: if stdout is empty but stderr has content, try stderr
+  const effectiveOutput = rawOutput.trim() ? rawOutput : rawStderr || rawOutput;
+
+  const parsed = parseInteractiveOutput(effectiveOutput);
+  parsed.rawStderr = rawStderr;
+  return parsed;
+}
+
+/**
+ * Parse Codex CLI interactive output format (header + metadata + thinking + response).
+ * Used for older CLI versions where everything goes to stdout,
+ * or for parsing stderr in newer versions.
+ */
+function parseInteractiveOutput(rawOutput: string): CodexOutput {
   const lines = rawOutput.split('\n');
   const timestamps: string[] = [];
   let metadata: any = {};
@@ -35,8 +95,13 @@ export function parseCodexOutput(rawOutput: string): CodexOutput {
   let thinkingLines: string[] = [];
   let responseLines: string[] = [];
 
+  // Section marker patterns — must match ONLY standalone markers, not content lines.
+  // Codex CLI uses these as speaker/action labels on their own line.
+  const STANDALONE_MARKERS = /^(codex|assistant|user|exec|thinking)$/;
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const trimmed = line.trim();
 
     // Extract timestamps
     const timestampMatch = line.match(/^\[([^\]]+)\]/);
@@ -44,14 +109,14 @@ export function parseCodexOutput(rawOutput: string): CodexOutput {
       timestamps.push(timestampMatch[1]);
     }
 
-    // Extract tokens used
-    const tokensMatch = line.match(/tokens used:\s*(\d+)/);
+    // Extract tokens used (with or without colon, handle space-separated numbers like "7 951")
+    const tokensMatch = line.match(/tokens used[:\s]*(\d[\d\s]*\d|\d+)/);
     if (tokensMatch) {
-      tokensUsed = parseInt(tokensMatch[1], 10);
+      tokensUsed = parseInt(tokensMatch[1].replace(/\s/g, ''), 10);
       continue;
     }
 
-    // Identify sections
+    // Identify sections by standalone markers and structural patterns
     if (line.includes('OpenAI Codex') || line.includes('Codex CLI')) {
       currentSection = 'header';
       continue;
@@ -65,41 +130,56 @@ export function parseCodexOutput(rawOutput: string): CodexOutput {
     } else if (line.includes('User instructions:')) {
       currentSection = 'userInstructions';
       continue;
-    } else if (line.includes('thinking')) {
+    } else if (trimmed === 'user') {
+      // User prompt section — skip user's input
+      currentSection = 'user';
+      continue;
+    } else if (trimmed === 'thinking') {
       currentSection = 'thinking';
       continue;
-    } else if (line.includes('codex') || line.includes('assistant')) {
+    } else if (trimmed === 'codex' || trimmed === 'assistant') {
       currentSection = 'response';
+      continue;
+    } else if (
+      trimmed === 'exec' ||
+      trimmed.startsWith('collab ') ||
+      trimmed.startsWith('Plan ') ||
+      trimmed.startsWith('mcp:') ||
+      trimmed.startsWith('mcp startup:') ||
+      trimmed.startsWith('spawn_agent(')
+    ) {
+      // Skip tool execution, collaboration, planning, and MCP lifecycle lines
+      currentSection = 'exec';
       continue;
     }
 
     // Parse based on current section
     switch (currentSection) {
       case 'metadata':
-        if (line.trim()) {
-          metadataLines.push(line.trim());
+        if (trimmed) {
+          metadataLines.push(trimmed);
         }
         break;
       case 'userInstructions':
-        if (line.trim() && !line.includes('User instructions:')) {
+        if (trimmed && !line.includes('User instructions:')) {
           userInstructions += line + '\n';
         }
         break;
       case 'thinking':
-        if (line.trim() && !line.includes('thinking')) {
+        if (trimmed) {
           thinkingLines.push(line);
         }
         break;
       case 'response':
       case 'content':
-        if (
-          line.trim() &&
-          !line.includes('codex') &&
-          !line.includes('assistant') &&
-          !line.includes('tokens used:')
-        ) {
+        // Only filter standalone markers and token lines, not content containing keywords
+        if (trimmed && !STANDALONE_MARKERS.test(trimmed)) {
           responseLines.push(line);
         }
+        break;
+      case 'user':
+      case 'exec':
+        // Skip user prompt and exec output lines
         break;
     }
   }
@@ -175,18 +255,73 @@ export function formatCodexResponse(
   return formatted;
 }
 
+/**
+ * Format full execution log from stderr (interactive output).
+ * Shows the complete Codex CLI session: metadata, thinking, tool executions, and final response.
+ */
+export function formatCodexResponseFull(output: CodexOutput): string {
+  const stderr = output.rawStderr || '';
+  const stdout = output.rawOutput || '';
+
+  if (!stderr.trim() && !stdout.trim()) {
+    return '(empty response)';
+  }
+
+  let formatted = '';
+
+  // Include metadata header
+  if (output.metadata.model || output.metadata.sandbox) {
+    formatted += `**Codex Configuration:**\n`;
+    if (output.metadata.model) formatted += `- Model: ${output.metadata.model}\n`;
+    if (output.metadata.sandbox) formatted += `- Sandbox: ${output.metadata.sandbox}\n`;
+    if (output.metadata.approval) formatted += `- Approval: ${output.metadata.approval}\n`;
+    if (output.metadata.reasoning_effort)
+      formatted += `- Reasoning: ${output.metadata.reasoning_effort}\n`;
+    formatted += '\n';
+  }
+
+  // Full execution log from stderr
+  if (stderr.trim()) {
+    formatted += `**Execution Log:**\n`;
+    formatted += '```\n' + stderr.trim() + '\n```\n\n';
+  }
+
+  // Final response from stdout
+  if (stdout.trim()) {
+    formatted += `**Final Response:**\n`;
+    formatted += stdout.trim();
+  }
+
+  // Token usage
+  if (output.tokensUsed) {
+    formatted += `\n\n*Tokens used: ${output.tokensUsed}*`;
+  }
+
+  return formatted;
+}
+
 export function formatCodexResponseForMCP(
   result: string,
   includeThinking: boolean = true,
-  includeMetadata: boolean = true
+  includeMetadata: boolean = true,
+  stderr?: string,
+  responseMode: ResponseMode = 'clean'
 ): string {
   // Try to parse the output first
   try {
-    const parsed = parseCodexOutput(result);
+    const parsed = parseCodexOutput(result, stderr);
+
+    if (responseMode === 'full') {
+      return formatCodexResponseFull(parsed);
+    }
+
     return formatCodexResponse(parsed, includeThinking, includeMetadata);
   } catch {
-    // If parsing fails, return the raw output
-    return result;
+    // If parsing fails, return the raw output (prefer non-empty source)
+    if (responseMode === 'full' && stderr?.trim()) {
+      return `**Execution Log:**\n\`\`\`\n${stderr.trim()}\n\`\`\`\n\n**Final Response:**\n${result.trim() || '(empty)'}`;
+    }
+    return result.trim() || stderr?.trim() || result;
   }
 }
 
