@@ -11,6 +11,10 @@
 
 MCP server connecting Claude/Cursor to Codex CLI. Enables code analysis via `@` file references, multi-turn conversations, sandboxed edits, and structured change mode.
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/x51xxx-codex-mcp-tool).
+
 ## Features
 
 - **File Analysis** — Reference files with `@src/`, `@package.json` syntax
