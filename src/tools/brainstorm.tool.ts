@@ -108,7 +108,9 @@ const brainstormArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.4`),
+    .describe(
+      `Optional model override. Known: ${Object.values(MODELS).join(', ')}. If omitted, uses your Codex CLI default (~/.codex/config.toml).`
+    ),
   approvalPolicy: z
     .enum(['never', 'on-request', 'on-failure', 'untrusted'])
     .optional()
@@ -154,8 +156,10 @@ const brainstormArgsSchema = z.object({
   disableFeatures: z.array(z.string()).optional().describe('Disable feature flags'),
   reasoningEffort: z
     .enum(['low', 'medium', 'high', 'xhigh'])
-    .optional()
-    .describe('Reasoning depth: low (fast), medium (default), high (complex), xhigh (extra deep)'),
+    .default('high')
+    .describe(
+      'Reasoning depth. Default: high (creative ideation benefits from depth). Override with "xhigh" for very complex domains, "medium" for quick exploration.'
+    ),
   personality: z
     .enum(['pragmatic', 'friendly'])
     .optional()

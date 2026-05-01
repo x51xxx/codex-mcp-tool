@@ -55,7 +55,7 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 'analyze @package.json and list dependencies';
 
 // With specific model
-'use codex with model gpt-5.4 to analyze @algorithm.py';
+'use codex with model gpt-5.5 to analyze @algorithm.py';
 
 // Multi-turn conversations (v1.4.0+)
 'ask codex sessionId:"my-project" prompt:"explain @src/"';
@@ -86,16 +86,21 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 
 ## Models
 
-Default: `gpt-5.4` with fallback → `gpt-5.3-codex` → `gpt-5.2-codex` → `gpt-5.1-codex-max` → `gpt-5.2`
+By default the `model` parameter is **omitted** and Codex CLI applies the
+default model from your `~/.codex/config.toml` (e.g. `model = "gpt-5.5"`).
+Pass `model` only when you need to override the configured default for a
+single call. Reasoning depth is calibrated per tool:
 
-| Model                | Use Case                                 |
-| -------------------- | ---------------------------------------- |
-| `gpt-5.4`            | Latest frontier agentic coding (default) |
-| `gpt-5.3-codex`      | Frontier agentic coding                  |
-| `gpt-5.2-codex`      | Frontier agentic coding                  |
-| `gpt-5.1-codex-max`  | Deep and fast reasoning                  |
-| `gpt-5.1-codex-mini` | Cost-efficient quick tasks               |
-| `gpt-5.2`            | Broad knowledge, reasoning and coding    |
+- `ask-codex` — uses Codex CLI default reasoning (medium). Pass `reasoningEffort: "high"` / `"xhigh"` for harder tasks.
+- `brainstorm`, `do-act`, `review-changes` — default `reasoningEffort: "high"` (creative ideation, act-check-fix loops, and code review benefit from deeper reasoning).
+
+| Model           | Use Case                                                  |
+| --------------- | --------------------------------------------------------- |
+| `gpt-5.5`       | Frontier model for complex coding, research, agentic work |
+| `gpt-5.4`       | Strong model for everyday coding                          |
+| `gpt-5.4-mini`  | Small, fast, cost-efficient for simpler coding tasks      |
+| `gpt-5.3-codex` | Coding-optimized model                                    |
+| `gpt-5.2`       | Optimized for professional work and long-running agents   |
 
 ## Key Features
 
@@ -165,6 +170,8 @@ codex login        # Authenticate
 Use `health` tool for diagnostics: `'use health verbose:true'`
 
 ## Migration
+
+**v2.2.x → v2.3.0:** `gpt-5.5` as new default, added `gpt-5.4-mini`, dropped retired models (`gpt-5.3-codex-spark`, `gpt-5.2-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex-mini`).
 
 **v2.0.x → v2.1.0:** `gpt-5.4` as new default model, updated fallback chain.
 

@@ -4,13 +4,13 @@ The Codex MCP Tool provides access to OpenAI's Codex CLI models optimized for so
 
 ## Available Models
 
-| Model                  | Context  | Best For                                        | Notes                            |
-| ---------------------- | -------- | ----------------------------------------------- | -------------------------------- |
-| **gpt-5.3-codex**      | Extended | Complex multi-file edits, architecture analysis | Default, latest frontier         |
-| **gpt-5.2-codex**      | Extended | Complex coding tasks, architecture analysis     | Frontier agentic coding          |
-| **gpt-5.1-codex-max**  | Extended | Deep reasoning, complex analysis                | Codex-optimized flagship         |
-| **gpt-5.1-codex-mini** | Standard | Quick tasks, simple queries, cost-efficient     | Faster, but less capable         |
-| **gpt-5.2**            | Extended | General reasoning, broad knowledge              | Latest frontier, general purpose |
+| Model             | Context  | Best For                                         | Notes                            |
+| ----------------- | -------- | ------------------------------------------------ | -------------------------------- |
+| **gpt-5.5**       | Extended | Complex coding, computer use, research workflows | Preferred default when available |
+| **gpt-5.4**       | Extended | Professional coding and agentic workflows        | Primary fallback                 |
+| **gpt-5.4-mini**  | Extended | Fast coding tasks and subagents                  | Lower latency and cost           |
+| **gpt-5.3-codex** | Extended | Complex multi-file edits, architecture analysis  | Frontier coding model            |
+| **gpt-5.2**       | Extended | General reasoning, broad knowledge               | Alternative general model        |
 
 ## How to Select a Model
 
@@ -18,25 +18,25 @@ The Codex MCP Tool provides access to OpenAI's Codex CLI models optimized for so
 
 ```bash
 # Specify model with --model flag
-codex --model gpt-5.3-codex "analyze @src/**/*.ts for performance issues"
-codex --model gpt-5.1-codex-max "refactor @utils.js"
-codex --model gpt-5.1-codex-mini "quick review of @utils.js"
+codex --model gpt-5.5 "analyze @src/**/*.ts for performance issues"
+codex --model gpt-5.4 "refactor @utils.js"
+codex --model gpt-5.4-mini "quick review of @utils.js"
 ```
 
 ### Using MCP Tool (ask-codex)
 
 ```javascript
 // Natural language
-"use gpt-5.3-codex to analyze the entire codebase architecture"
+"use gpt-5.5 to analyze the entire codebase architecture"
 "ask codex to solve this algorithm problem"
-"quick check with gpt-5.1-codex-mini on this function"
+"quick check with gpt-5.4-mini on this function"
 
 // Direct tool invocation
 {
   "name": "ask-codex",
   "arguments": {
     "prompt": "analyze @src/core for optimization opportunities",
-    "model": "gpt-5.3-codex"
+    "model": "gpt-5.5"
   }
 }
 ```
@@ -48,7 +48,7 @@ codex --model gpt-5.1-codex-mini "quick review of @utils.js"
   "name": "brainstorm",
   "arguments": {
     "prompt": "innovative features for our app",
-    "model": "gpt-5.3-codex",
+    "model": "gpt-5.5",
     "methodology": "lateral"
   }
 }
@@ -60,33 +60,33 @@ codex --model gpt-5.1-codex-mini "quick review of @utils.js"
 
 #### Code Review & Analysis
 
-- **Quick review**: gpt-5.1-codex-mini (fast, efficient)
-- **Comprehensive review**: gpt-5.3-codex (balanced)
-- **Security audit**: gpt-5.3-codex (highest reliability)
+- **Quick review**: gpt-5.4-mini (fast, efficient)
+- **Comprehensive review**: gpt-5.5 (best quality when available)
+- **Security audit**: gpt-5.5 (highest reliability)
 
 #### Architecture & Design
 
-- **System design**: gpt-5.3-codex (complex analysis)
-- **API design**: gpt-5.1-codex-max (deep reasoning)
-- **Quick prototypes**: gpt-5.1-codex-mini (speed)
+- **System design**: gpt-5.5 (complex analysis)
+- **API design**: gpt-5.4 (deep reasoning)
+- **Quick prototypes**: gpt-5.4-mini (speed)
 
 #### Bug Investigation
 
-- **Complex bugs**: gpt-5.3-codex (thorough analysis)
-- **Performance issues**: gpt-5.1-codex-max (balanced)
-- **Simple fixes**: gpt-5.1-codex-mini (quick turnaround)
+- **Complex bugs**: gpt-5.5 (thorough analysis)
+- **Performance issues**: gpt-5.4 (balanced)
+- **Simple fixes**: gpt-5.4-mini (quick turnaround)
 
 #### Documentation
 
-- **API docs**: gpt-5.3-codex (comprehensive)
-- **Quick comments**: gpt-5.1-codex-mini (efficient)
-- **Architecture docs**: gpt-5.3-codex (thorough)
+- **API docs**: gpt-5.5 (comprehensive)
+- **Quick comments**: gpt-5.4-mini (efficient)
+- **Architecture docs**: gpt-5.5 (thorough)
 
 #### Refactoring
 
-- **Large-scale**: gpt-5.3-codex (handles complexity)
-- **Standard refactoring**: gpt-5.1-codex-max (balanced)
-- **Simple cleanup**: gpt-5.1-codex-mini (cost-effective)
+- **Large-scale**: gpt-5.5 (handles complexity)
+- **Standard refactoring**: gpt-5.4 (balanced)
+- **Simple cleanup**: gpt-5.4-mini (cost-effective)
 
 ## Cost Optimization Strategies
 
@@ -94,45 +94,44 @@ codex --model gpt-5.1-codex-mini "quick review of @utils.js"
 
 ```bash
 # Initial exploration
-codex --model gpt-5.1-codex-mini "@src quick overview"
+codex --model gpt-5.4-mini "@src quick overview"
 
 # Detailed analysis if needed
-codex --model gpt-5.1-codex-max "@src comprehensive analysis"
+codex --model gpt-5.4 "@src comprehensive analysis"
 
 # Deep dive for critical issues
-codex --model gpt-5.3-codex "@src/critical solve complex bug"
+codex --model gpt-5.5 "@src/critical solve complex bug"
 ```
 
 ### 2. Match Model to Task Complexity
 
 ```javascript
 // Simple tasks - use mini model
-{ "prompt": "add comments", "model": "gpt-5.1-codex-mini" }
+{ "prompt": "add comments", "model": "gpt-5.4-mini" }
 
 // Medium complexity - flagship model
-{ "prompt": "refactor module", "model": "gpt-5.1-codex-max" }
+{ "prompt": "refactor module", "model": "gpt-5.4" }
 
 // High complexity - latest frontier
-{ "prompt": "redesign architecture", "model": "gpt-5.3-codex" }
+{ "prompt": "redesign architecture", "model": "gpt-5.5" }
 ```
 
 ## Performance Characteristics
 
 ### Response Times
 
-- **gpt-5.1-codex-mini**: Fastest responses, optimized for speed
-- **gpt-5.1-codex-max**: Balanced latency, deep reasoning
-- **gpt-5.3-codex**: Latest frontier for complex tasks
-- **gpt-5.2-codex**: Frontier agentic coding
+- **gpt-5.4-mini**: Fast responses, optimized for speed and cost
+- **gpt-5.4**: Balanced latency, strong reasoning
+- **gpt-5.5**: Best quality for complex tasks
 - **gpt-5.2**: Variable based on task type
 
 ### Reliability
 
-- **gpt-5.3-codex**: Latest frontier agentic coding
-- **gpt-5.2-codex**: Frontier agentic coding
-- **gpt-5.1-codex-max**: Codex-optimized flagship
-- **gpt-5.1-codex-mini**: Good for simple tasks
-- **gpt-5.2**: Best for general reasoning
+- **gpt-5.5**: Latest frontier coding and agentic workflows
+- **gpt-5.4**: Flagship professional coding work
+- **gpt-5.3-codex**: Complex software engineering
+- **gpt-5.4-mini**: Good for simple tasks and subagents
+- **gpt-5.2**: Best as a general-reasoning fallback
 
 ## Setting Default Models
 
@@ -142,7 +141,7 @@ In your Codex config (`~/.codex/config.toml`):
 
 ```toml
 [defaults]
-model = "gpt-5.3-codex"
+model = "gpt-5.5"
 ```
 
 ### Per-Request Override
@@ -150,7 +149,7 @@ model = "gpt-5.3-codex"
 ```javascript
 {
   "prompt": "analyze code",
-  "model": "gpt-5.1-codex-mini"  // Override default
+  "model": "gpt-5.4-mini"  // Override default
 }
 ```
 
@@ -174,7 +173,7 @@ Use `oss: true` to run with a local model provider. Specify `localProvider` to c
 The tool uses automatic fallback when a model is unavailable:
 
 ```
-gpt-5.3-codex → gpt-5.2-codex → gpt-5.1-codex-max → gpt-5.2
+gpt-5.5 → gpt-5.4 → gpt-5.4-mini → gpt-5.3-codex → gpt-5.2
 ```
 
 ## Troubleshooting
@@ -193,15 +192,15 @@ codex -m
 ```javascript
 // Switch to faster model
 {
-  "model": "gpt-5.1-codex-mini"
+  "model": "gpt-5.4-mini"
 }
 ```
 
 ## Best Practices
 
-1. **Start with gpt-5.1-codex-mini** for initial exploration
-2. **Use gpt-5.1-codex-max** for deep reasoning tasks
-3. **Reserve gpt-5.3-codex** for complex, critical tasks
+1. **Start with gpt-5.4-mini** for initial exploration
+2. **Use gpt-5.4** for deeper reasoning tasks
+3. **Reserve gpt-5.5** for complex, critical tasks
 4. **Consider gpt-5.2** for non-coding reasoning tasks
 5. **Monitor costs** and optimize model selection
 

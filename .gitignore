@@ -29,5 +29,8 @@ resource/
 # Local MCP configuration
 .mcp.json
 
+# MCP registry submission tokens (contain live credentials)
+.mcpregistry_*
+
 # Test scripts (optional - comment out if needed)
 test-features.sh

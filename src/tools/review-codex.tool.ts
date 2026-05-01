@@ -4,7 +4,7 @@ import { executeCommandDetailed } from '../utils/commandExecutor.js';
 import { MODELS, CLI } from '../constants.js';
 import { Logger } from '../utils/logger.js';
 import { resolveWorkingDirectory } from '../utils/workingDirResolver.js';
-import { getModelWithFallback } from '../utils/modelDetection.js';
+import { isValidModel } from '../utils/modelDetection.js';
 
 const reviewCodexArgsSchema = z.object({
   prompt: z
@@ -28,7 +28,15 @@ const reviewCodexArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: uses Codex's default`),
+    .describe(
+      `Optional model override. Known: ${Object.values(MODELS).join(', ')}. If omitted, uses your Codex CLI default (~/.codex/config.toml).`
+    ),
+  reasoningEffort: z
+    .enum(['low', 'medium', 'high', 'xhigh'])
+    .default('high')
+    .describe(
+      'Reasoning depth for the review. Default: high (code review benefits from deep reasoning).'
+    ),
   workingDir: z
     .string()
     .optional()
@@ -52,7 +60,17 @@ export const reviewCodexTool: UnifiedTool = {
   },
   category: 'codex',
   execute: async (args, onProgress) => {
-    const { prompt, uncommitted, base, commit, title, model, workingDir, timeout } = args;
+    const {
+      prompt,
+      uncommitted,
+      base,
+      commit,
+      title,
+      model,
+      reasoningEffort,
+      workingDir,
+      timeout,
+    } = args;
 
     // Validation: prompt and uncommitted are mutually exclusive
     if (prompt && uncommitted) {
@@ -73,11 +91,20 @@ export const reviewCodexTool: UnifiedTool = {
         cmdArgs.push(CLI.FLAGS.WORKING_DIR, resolvedDir);
       }
 
-      // Model selection via config
-      const selectedModel = model
-        ? await getModelWithFallback(model as string)
-        : await getModelWithFallback();
-      cmdArgs.push(CLI.FLAGS.CONFIG, `model="${selectedModel}"`);
+      // Model selection via config. When omitted, defer to Codex CLI config/default.
+      const selectedModel = model as string | undefined;
+      if (selectedModel) {
+        if (!isValidModel(selectedModel)) {
+          Logger.warn(`Model '${selectedModel}' not in known list — passing through to Codex CLI`);
+        }
+        cmdArgs.push(CLI.FLAGS.CONFIG, `model="${selectedModel}"`);
+      }
+
+      // Reasoning effort (defaults to 'high' via zod schema — code review benefits from depth)
+      const effort = reasoningEffort as 'low' | 'medium' | 'high' | 'xhigh' | undefined;
+      if (effort) {
+        cmdArgs.push(CLI.FLAGS.CONFIG, `model_reasoning_effort="${effort}"`);
+      }
 
       // The review subcommand
       cmdArgs.push('review');
@@ -122,7 +149,7 @@ export const reviewCodexTool: UnifiedTool = {
         throw new Error(result.stderr || 'Codex review command failed');
       }
 
-      return `## Code Review Results\n\n**Model:** ${selectedModel}\n${base ? `**Base:** ${base}\n` : ''}${commit ? `**Commit:** ${commit}\n` : ''}\n${response}`;
+      return `## Code Review Results\n\n**Model:** ${selectedModel ?? 'Codex CLI default'}\n${base ? `**Base:** ${base}\n` : ''}${commit ? `**Commit:** ${commit}\n` : ''}\n${response}`;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       Logger.error('Review failed:', error);

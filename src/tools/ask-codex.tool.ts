@@ -23,7 +23,9 @@ const askCodexArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.4`),
+    .describe(
+      `Optional model override. Known: ${Object.values(MODELS).join(', ')}. If omitted, uses your Codex CLI default (~/.codex/config.toml). Specify only to override.`
+    ),
   sandbox: z
     .boolean()
     .default(false)
@@ -119,7 +121,7 @@ const askCodexArgsSchema = z.object({
     .enum(['low', 'medium', 'high', 'xhigh'])
     .optional()
     .describe(
-      'Reasoning depth level: low (fast), medium (default), high (complex), xhigh (extra deep)'
+      'Reasoning depth. Omit to use Codex CLI default (medium). Set "high" or "xhigh" for complex tasks (refactors, deep analysis, multi-file changes); "low" for trivial lookups.'
     ),
   // Session management (v1.4.0+)
   sessionId: z

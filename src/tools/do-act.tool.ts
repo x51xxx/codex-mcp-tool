@@ -27,7 +27,9 @@ const doActArgsSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe(`Model: ${Object.values(MODELS).join(', ')}. Default: gpt-5.4`),
+    .describe(
+      `Optional model override. Known: ${Object.values(MODELS).join(', ')}. If omitted, uses your Codex CLI default (~/.codex/config.toml).`
+    ),
   fullAuto: z.boolean().optional().describe('Full automation mode'),
   sandboxMode: z
     .enum(['read-only', 'workspace-write', 'danger-full-access'])
@@ -37,8 +39,10 @@ const doActArgsSchema = z.object({
   timeout: z.number().default(600000).describe('Codex timeout per attempt in ms. Default: 10min'),
   reasoningEffort: z
     .enum(['low', 'medium', 'high', 'xhigh'])
-    .optional()
-    .describe('Reasoning depth'),
+    .default('high')
+    .describe(
+      'Reasoning depth. Default: high (act-check-fix loops benefit from depth so retries converge). Override with "xhigh" for hard tasks, "medium" for simple verifiable steps.'
+    ),
   oss: z.boolean().optional().describe('Use local Ollama/LM Studio'),
   localProvider: z.enum(['lmstudio', 'ollama']).optional(),
 });

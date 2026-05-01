@@ -37,9 +37,9 @@ The `ask-codex` tool provides non-interactive execution of Codex commands, suppo
 ### model (optional)
 
 - **Type:** `string`
-- **Default:** `gpt-5.2-codex`
-- **Options:** `"gpt-5.2-codex"`, `"gpt-5.1-codex-max"`, `"gpt-5.1-codex-mini"`, `"gpt-5.2"`
-- **Example:** `"model": "gpt-5.1-codex-mini"`
+- **Default:** `gpt-5.5` when available, with automatic fallback
+- **Options:** `"gpt-5.5"`, `"gpt-5.4"`, `"gpt-5.4-mini"`, `"gpt-5.3-codex"`, `"gpt-5.2"`
+- **Example:** `"model": "gpt-5.4-mini"`
 
 ### sandbox (optional)
 
@@ -164,7 +164,7 @@ Include files in your prompts using the @ symbol:
   "name": "ask-codex",
   "arguments": {
     "prompt": "create unit tests for @src/utils/calculator.ts",
-    "model": "gpt-5.1-codex",
+    "model": "gpt-5.4-mini",
     "sandboxMode": "workspace-write"
   }
 }
@@ -190,7 +190,7 @@ Include files in your prompts using the @ symbol:
   "name": "ask-codex",
   "arguments": {
     "prompt": "audit @src/ for security vulnerabilities",
-    "model": "gpt-5.1-codex-max",
+    "model": "gpt-5.5",
     "sandboxMode": "read-only"
   }
 }
@@ -315,9 +315,10 @@ Be precise to improve performance:
 
 Match model to task complexity:
 
-- **gpt-5.1-codex-mini**: Quick tasks, simple queries
-- **gpt-5.1-codex**: Standard coding tasks
-- **gpt-5.1-codex-max**: Complex multi-file refactoring
+- **gpt-5.5**: Complex coding and agentic workflows
+- **gpt-5.4**: Professional coding work
+- **gpt-5.4-mini**: Quick tasks, simple queries, subagents
+- **gpt-5.3-codex**: Complex multi-file refactoring
 
 ### 4. Enable Change Mode for Edits
 
@@ -365,7 +366,7 @@ For consistent file resolution:
 /codex-cli:ask-codex analyze @src/
 
 # With options
-/codex-cli:ask-codex --model gpt-5.1-codex-mini review @src/api/
+/codex-cli:ask-codex --model gpt-5.4-mini review @src/api/
 ```
 
 ### In Automation Scripts
@@ -381,7 +382,7 @@ const result = execSync('npx @trishchuk/codex-mcp-tool', {
       name: 'ask-codex',
       arguments: {
         prompt: 'analyze @src/',
-        model: 'gpt-5.1-codex-mini',
+        model: 'gpt-5.4-mini',
       },
     },
   }),

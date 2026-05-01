@@ -24,14 +24,13 @@ export const STATUS_MESSAGES = {
   PROCESSING_COMPLETE: '✅ Analysis completed successfully',
 } as const;
 
-// Models (Available in Codex CLI)
+// Models (Available in Codex CLI — synced with ~/.codex/models_cache.json @ CLI v0.128.0)
 export const MODELS = {
-  GPT5_4: 'gpt-5.4', // Latest frontier agentic coding model
-  GPT5_3_CODEX: 'gpt-5.3-codex', // Default: Frontier agentic coding model
-  GPT5_2_CODEX: 'gpt-5.2-codex', // Frontier agentic coding model
-  GPT5_1_CODEX_MAX: 'gpt-5.1-codex-max', // Codex-optimized flagship for deep and fast reasoning
-  GPT5_1_CODEX_MINI: 'gpt-5.1-codex-mini', // Optimized for codex. Cheaper, faster, but less capable
-  GPT5_2: 'gpt-5.2', // Frontier model with improvements across knowledge, reasoning and coding
+  GPT5_5: 'gpt-5.5', // Default: frontier model for complex coding, research, and real-world work
+  GPT5_4: 'gpt-5.4', // Strong model for everyday coding
+  GPT5_4_MINI: 'gpt-5.4-mini', // Small, fast, cost-efficient for simpler coding tasks
+  GPT5_3_CODEX: 'gpt-5.3-codex', // Coding-optimized model
+  GPT5_2: 'gpt-5.2', // Optimized for professional work and long-running agents
 } as const;
 
 // Reasoning effort levels (Available for gpt-5.3-codex model)

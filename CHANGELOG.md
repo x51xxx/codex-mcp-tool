@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.3.0] - 2026-05-01
+
+### Added
+
+- **GPT-5.5 and GPT-5.4-mini support**: Models list synced with Codex CLI v0.128.0 model catalogue
+  - `gpt-5.5` — frontier model for complex coding, research, and agentic work (current Codex CLI default)
+  - `gpt-5.4-mini` — small, fast, cost-efficient for simpler coding tasks
+- **Per-tool reasoning calibration**: Default `reasoningEffort` tuned to each tool's typical workload
+  - `brainstorm` → `high` (creative ideation benefits from depth)
+  - `do-act` → `high` (act-check-fix loops converge faster with deeper reasoning)
+  - `review-changes` → `high` + `reasoningEffort` parameter wired through (previously ignored)
+- `.gitignore` entry for `.mcpregistry_*` token files
+
+### Changed
+
+- **`model` is now truly optional in every tool**: When omitted, the tool no longer probes a fallback chain — it simply doesn't pass `-m`, deferring to the default in `~/.codex/config.toml`. Saves ~5 s of startup latency per call and stops burning quota on availability tests.
+- Tool descriptions for `model` rewritten to reflect the new behaviour ("Optional model override. If omitted, uses your Codex CLI default. Specify only to override.")
+- `review-changes`: only injects `-c model="..."` when caller explicitly overrides the model
+- README "Models" section rewritten to document config-default behaviour and per-tool reasoning calibration
+
+### Removed
+
+- **Retired models** (no longer in Codex CLI v0.128.0 model catalogue): `gpt-5.2-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex-mini`, `gpt-5.3-codex-spark`
+- **Dead model-detection code**: `getModelWithFallback`, `getDefaultModel`, `isModelAvailable`, `getAvailableModels` removed from `src/utils/modelDetection.ts`. Only `isValidModel` remains for soft-warning unknown model names.
+
 ## [2.2.0] - 2026-03-13
 
 ### Added

@@ -1,7 +1,7 @@
 import { CLI } from '../constants.js';
 import { Logger } from './logger.js';
 import { resolveWorkingDirectory } from './workingDirResolver.js';
-import { getModelWithFallback } from './modelDetection.js';
+import { isValidModel } from './modelDetection.js';
 import {
   supportsNativeSearch,
   supportsAddDir,
@@ -228,33 +228,34 @@ export class CodexCommandBuilder {
   }
 
   /**
-   * Add model argument with fallback chain
-   * @param model Requested model name
-   * @param skipValidation When true (OSS/local mode), pass model as-is without fallback checks
+   * Add model argument — only pushes -m when an explicit model is given.
+   * When omitted, Codex CLI applies its own default from ~/.codex/config.toml.
+   *
+   * @param model Requested model name (optional)
+   * @param skipValidation When true (OSS/local mode), pass model as-is without checks
    */
   private async addModelArg(model?: string, skipValidation?: boolean): Promise<void> {
-    if (skipValidation) {
-      if (model) {
-        // OSS/local models (e.g. qwen3:8b, gemma3:4b) are not in MODELS constant —
-        // pass them directly without validation or fallback.
-        this.args.push(CLI.FLAGS.MODEL, model);
-        Logger.debug(`Using local/OSS model: ${model}`);
-      } else {
-        // OSS mode without explicit model — don't inject OpenAI model,
-        // let Codex CLI / local provider use its default
-        Logger.debug('OSS/local mode: skipping model flag, using provider default');
-      }
+    if (!model) {
+      Logger.debug(
+        skipValidation
+          ? 'OSS/local mode: no model specified, deferring to provider default'
+          : 'No model specified, deferring to Codex CLI config (~/.codex/config.toml)'
+      );
       return;
     }
 
-    const selectedModel = await getModelWithFallback(model);
-    this.args.push(CLI.FLAGS.MODEL, selectedModel);
-
-    if (model && model !== selectedModel) {
-      Logger.warn(`Requested model '${model}' not available, using fallback: '${selectedModel}'`);
-    } else {
-      Logger.debug(`Using model: ${selectedModel}`);
+    if (skipValidation) {
+      // OSS/local models (e.g. qwen3:8b, gemma3:4b) bypass MODELS validation.
+      this.args.push(CLI.FLAGS.MODEL, model);
+      Logger.debug(`Using local/OSS model: ${model}`);
+      return;
     }
+
+    if (!isValidModel(model)) {
+      Logger.warn(`Model '${model}' not in known list — passing through to Codex CLI as-is`);
+    }
+    this.args.push(CLI.FLAGS.MODEL, model);
+    Logger.debug(`Using model: ${model}`);
   }
 
   /**

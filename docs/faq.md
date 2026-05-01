@@ -6,14 +6,14 @@ In 2021, OpenAI released Codex, an AI system designed to generate code from natu
 
 ### Which models are supported?
 
-We recommend using Codex with gpt-5.3-codex, our latest frontier coding model. The default reasoning level is medium, and you can upgrade to high for complex tasks with the `/model` command.
+We recommend using Codex with gpt-5.5 when it is available in your account. The default reasoning level is medium, and you can upgrade to high for complex tasks with the `/model` command.
 
 Available models:
 
-- **gpt-5.3-codex** - Default, latest frontier agentic coding
-- **gpt-5.2-codex** - Frontier agentic coding
-- **gpt-5.1-codex-max** - Deep and fast reasoning
-- **gpt-5.1-codex-mini** - Faster, more cost-effective
+- **gpt-5.5** - Latest frontier coding and agentic workflows
+- **gpt-5.4** - Flagship professional coding work
+- **gpt-5.4-mini** - Fast coding tasks and subagents
+- **gpt-5.3-codex** - Complex software engineering
 - **gpt-5.2** - Broad knowledge, reasoning and coding
 
 You can also use specific models by launching codex with the `--model` flag.

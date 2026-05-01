@@ -298,23 +298,17 @@ await mcp.call('ask-codex', {
 Execute independent tasks in parallel:
 
 ```javascript
-// Parallel analysis of different modules
-const modules = ['auth', 'api', 'database', 'ui'];
-
-const analyses = await Promise.all(
-  modules.map(module =>
-    mcp.call('ask-codex', {
-      prompt: `analyze @src/${module}/`,
-      model: 'gpt-5.1-codex-mini',
-    })
-  )
-);
-
-// Combine results
-const summary = await mcp.call('ask-codex', {
-  prompt: 'synthesize module analyses into system overview',
-  existingContext: analyses.join('\n'),
-  model: 'gpt-5.1-codex-max',
+const result = await mcp.call('batch-codex', {
+  parallel: true,
+  concurrency: 3,
+  stopOnError: true,
+  model: 'gpt-5.4-mini',
+  tasks: [
+    { task: 'analyze module architecture', target: '@src/auth/', priority: 'high' },
+    { task: 'analyze module architecture', target: '@src/api/', priority: 'high' },
+    { task: 'analyze module architecture', target: '@src/database/', priority: 'normal' },
+    { task: 'analyze module architecture', target: '@src/ui/', priority: 'normal' },
+  ],
 });
 ```
 
