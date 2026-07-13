@@ -10,7 +10,7 @@ export interface ChangeModeEdit {
 export function parseChangeModeOutput(toolResponse: string): ChangeModeEdit[] {
   const edits: ChangeModeEdit[] = [];
   const markdownPattern =
-    /\*\*FILE:\s*(.+?):(\d+)\*\*\s*\n```\s*\nOLD:\s*\n([\s\S]*?)\nNEW:\s*\n([\s\S]*?)\n```/g;
+    /\*\*FILE:\s*(.+?):(\d+)\*\*\s*\r?\n```[^\r\n]*\r?\nOLD:\s*\r?\n([\s\S]*?)\r?\nNEW:\s*\r?\n([\s\S]*?)\r?\n```/g;
 
   let match;
   while ((match = markdownPattern.exec(toolResponse)) !== null) {
