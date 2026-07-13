@@ -14,7 +14,7 @@ When analyzing large codebases, break down the analysis into manageable chunks:
   "name": "ask-codex",
   "arguments": {
     "prompt": "provide high-level architecture overview of @src/",
-    "model": "gpt-5.1-codex-mini"
+    "model": "gpt-5.6-luna"
   }
 }
 
@@ -23,7 +23,7 @@ When analyzing large codebases, break down the analysis into manageable chunks:
   "name": "ask-codex",
   "arguments": {
     "prompt": "analyze @src/core/ in detail",
-    "model": "gpt-5.1-codex"
+    "model": "gpt-5.6-terra"
   }
 }
 
@@ -32,7 +32,7 @@ When analyzing large codebases, break down the analysis into manageable chunks:
   "name": "ask-codex",
   "arguments": {
     "prompt": "map dependencies between @src/core/ and @src/utils/",
-    "model": "gpt-5.1-codex-max"
+    "model": "gpt-5.6-sol"
   }
 }
 ```
@@ -48,7 +48,7 @@ For very large files or directories:
   "arguments": {
     "prompt": "refactor all TypeScript files in @src/",
     "changeMode": true,
-    "model": "gpt-5.1-codex-max"
+    "model": "gpt-5.6-sol"
   }
 }
 
@@ -217,7 +217,7 @@ jobs:
               "name": "ask-codex",
               "arguments": {
                 "prompt": "security audit @src/",
-                "model": "gpt-5.1-codex-max",
+                "model": "gpt-5.6-sol",
                 "sandboxMode": "read-only"
               }
             }
@@ -231,7 +231,7 @@ jobs:
               "name": "ask-codex",
               "arguments": {
                 "prompt": "identify performance bottlenecks @src/",
-                "model": "gpt-5.1-codex"
+                "model": "gpt-5.6-terra"
               }
             }
           }' | npx @trishchuk/codex-mcp-tool
@@ -247,7 +247,7 @@ const weeklyReview = async () => {
   // Identify technical debt
   const debt = await mcp.call('ask-codex', {
     prompt: 'identify technical debt in @src/',
-    model: 'gpt-5.1-codex-max',
+    model: 'gpt-5.6-sol',
   });
 
   // Generate improvement plan
@@ -272,16 +272,16 @@ Choose the right model for the task:
 const selectModel = task => {
   switch (task.type) {
     case 'quick-analysis':
-      return 'gpt-5.1-codex-mini'; // Fast, cost-effective
+      return 'gpt-5.6-luna'; // Fast, cost-effective
 
     case 'complex-reasoning':
-      return 'gpt-5.1-codex'; // Advanced reasoning
+      return 'gpt-5.6-terra'; // Advanced reasoning
 
     case 'large-refactoring':
-      return 'gpt-5.1-codex-max'; // Maximum context
+      return 'gpt-5.6-sol'; // Maximum context
 
     default:
-      return 'gpt-5.1-codex-mini';
+      return 'gpt-5.6-luna';
   }
 };
 
@@ -339,7 +339,7 @@ class CodexWorkflow {
   async review(path) {
     return mcp.call('ask-codex', {
       prompt: `comprehensive review of @${path}`,
-      model: 'gpt-5.1-codex-max',
+      model: 'gpt-5.6-sol',
       sandboxMode: 'read-only',
     });
   }
@@ -390,7 +390,7 @@ Implement security-focused reviews:
       - Security misconfigurations
       - Using components with known vulnerabilities
       - Insufficient logging and monitoring`,
-    "model": "gpt-5.1-codex-max",
+    "model": "gpt-5.6-sol",
     "sandboxMode": "read-only"
   }
 }
@@ -405,7 +405,7 @@ Ensure code meets compliance requirements:
   "name": "ask-codex",
   "arguments": {
     "prompt": "verify @src/ compliance with GDPR, HIPAA, and SOC 2",
-    "model": "gpt-5.1-codex-max",
+    "model": "gpt-5.6-sol",
     "sandboxMode": "read-only"
   }
 }
@@ -423,7 +423,7 @@ const reproduce = {
   name: 'ask-codex',
   arguments: {
     prompt: 'trace execution path for [error scenario] in @src/',
-    model: 'gpt-5.1-codex',
+    model: 'gpt-5.6-terra',
   },
 };
 
@@ -432,7 +432,7 @@ const rootCause = {
   name: 'ask-codex',
   arguments: {
     prompt: 'identify root cause of [error] based on trace',
-    model: 'gpt-5.1-codex-max',
+    model: 'gpt-5.6-sol',
   },
 };
 

@@ -32,7 +32,7 @@ const reviewCodexArgsSchema = z.object({
       `Optional model override. Known: ${Object.values(MODELS).join(', ')}. If omitted, uses your Codex CLI default (~/.codex/config.toml).`
     ),
   reasoningEffort: z
-    .enum(['low', 'medium', 'high', 'xhigh'])
+    .enum(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'])
     .default('high')
     .describe(
       'Reasoning depth for the review. Default: high (code review benefits from deep reasoning).'
@@ -101,7 +101,14 @@ export const reviewCodexTool: UnifiedTool = {
       }
 
       // Reasoning effort (defaults to 'high' via zod schema — code review benefits from depth)
-      const effort = reasoningEffort as 'low' | 'medium' | 'high' | 'xhigh' | undefined;
+      const effort = reasoningEffort as
+        | 'low'
+        | 'medium'
+        | 'high'
+        | 'xhigh'
+        | 'max'
+        | 'ultra'
+        | undefined;
       if (effort) {
         cmdArgs.push(CLI.FLAGS.CONFIG, `model_reasoning_effort="${effort}"`);
       }

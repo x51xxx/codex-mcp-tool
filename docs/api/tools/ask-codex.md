@@ -37,28 +37,28 @@ The `ask-codex` tool provides non-interactive execution of Codex commands, suppo
 ### model (optional)
 
 - **Type:** `string`
-- **Default:** `gpt-5.5` when available, with automatic fallback
-- **Options:** `"gpt-5.5"`, `"gpt-5.4"`, `"gpt-5.4-mini"`, `"gpt-5.3-codex"`, `"gpt-5.2"`
-- **Example:** `"model": "gpt-5.4-mini"`
+- **Default:** omitted; Codex CLI config and account select the model
+- **Known options:** `"gpt-5.6"`, `"gpt-5.6-sol"`, `"gpt-5.6-terra"`, `"gpt-5.6-luna"`, `"gpt-5.5"`, `"gpt-5.4"`, `"gpt-5.4-mini"`
+- **Example:** `"model": "gpt-5.6-terra"`
 
 ### sandbox (optional)
 
 - **Type:** `boolean`
 - **Default:** `false`
-- **Description:** Alias for fullAuto mode
-- **Effect:** Enables workspace-write + on-failure approval
+- **Description:** Compatibility automation alias
+- **Effect:** Enables workspace-write + approval `never`; sandboxing remains active
 
 ### fullAuto (optional)
 
 - **Type:** `boolean`
 - **Default:** `false`
-- **Description:** Enable full automation mode
-- **Effect:** Sets workspace-write sandbox and on-failure approval
+- **Description:** Compatibility alias for non-interactive automation
+- **Effect:** Sets workspace-write sandbox and approval `never`
 
 ### approvalPolicy (optional)
 
 - **Type:** `string`
-- **Options:** `"never"`, `"on-request"`, `"on-failure"`, `"untrusted"`
+- **Options:** `"never"`, `"on-request"`, `"untrusted"`
 - **Default:** Codex CLI default
 - **Description:** Controls when approval is required
 
@@ -108,14 +108,16 @@ The `ask-codex` tool provides non-interactive execution of Codex commands, suppo
 ### reasoningEffort (optional)
 
 - **Type:** `string`
-- **Options:** `"low"`, `"medium"`, `"high"`, `"max"`
+- **Options:** `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"max"`, `"ultra"`
 - **Default:** `"medium"`
 - **Description:** Controls reasoning depth for complex problems
 - **Usage:**
   - `low` - Fast responses with lighter reasoning
   - `medium` - Balances speed and reasoning depth (default)
   - `high` - Greater reasoning depth for complex problems
-  - `max` - Extra high reasoning depth for the most complex tasks
+  - `xhigh` - Extra-high reasoning depth for difficult multi-step work
+  - `max` - Maximum single-agent reasoning for the hardest tasks
+  - `ultra` - Maximum reasoning with model-dependent automatic delegation
 
 ## File References
 
@@ -190,7 +192,7 @@ Include files in your prompts using the @ symbol:
   "name": "ask-codex",
   "arguments": {
     "prompt": "audit @src/ for security vulnerabilities",
-    "model": "gpt-5.5",
+    "model": "gpt-5.6-sol",
     "sandboxMode": "read-only"
   }
 }
@@ -315,10 +317,10 @@ Be precise to improve performance:
 
 Match model to task complexity:
 
-- **gpt-5.5**: Complex coding and agentic workflows
-- **gpt-5.4**: Professional coding work
-- **gpt-5.4-mini**: Quick tasks, simple queries, subagents
-- **gpt-5.3-codex**: Complex multi-file refactoring
+- **gpt-5.6-sol**: Complex, ambiguous, high-value work
+- **gpt-5.6-terra**: Everyday coding and tool use
+- **gpt-5.6-luna**: Quick, clear, repeatable tasks
+- **gpt-5.5 / gpt-5.4 / gpt-5.4-mini**: Compatibility fallbacks
 
 ### 4. Enable Change Mode for Edits
 

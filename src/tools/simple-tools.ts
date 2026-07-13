@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { UnifiedTool, StructuredToolResult } from './registry.js';
 import { executeCommand } from '../utils/commandExecutor.js';
+import { readFileSync } from 'fs';
+
+const packageMetadata = JSON.parse(
+  readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
+) as { name: string; version: string };
 
 const pingArgsSchema = z.object({
   prompt: z.string().default('').describe('Message to echo '),
@@ -29,7 +34,7 @@ export const pingTool: UnifiedTool = {
 const helpArgsSchema = z.object({});
 
 export const helpTool: UnifiedTool = {
-  name: 'Help',
+  name: 'help',
   description: 'receive help information',
   zodSchema: helpArgsSchema,
   annotations: {
@@ -74,7 +79,7 @@ export const versionTool: UnifiedTool = {
   execute: async (args, onProgress) => {
     const nodeVersion = process.version;
     const platform = process.platform;
-    const mcpServer = '@trishchuk/codex-mcp-tool v2.1.1';
+    const mcpServer = `${packageMetadata.name} v${packageMetadata.version}`;
 
     try {
       const codexVersion = await executeCommand('codex', ['--version'], onProgress);

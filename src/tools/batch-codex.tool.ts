@@ -45,7 +45,7 @@ const batchCodexArgsSchema = z.object({
   search: z
     .boolean()
     .optional()
-    .describe('Enable web search for all tasks (activates web_search_request feature)'),
+    .describe('Enable live web search for all tasks using the native --search flag'),
   oss: z.boolean().optional().describe('Use local Ollama server'),
   enableFeatures: z.array(z.string()).optional().describe('Enable feature flags'),
   disableFeatures: z.array(z.string()).optional().describe('Disable feature flags'),

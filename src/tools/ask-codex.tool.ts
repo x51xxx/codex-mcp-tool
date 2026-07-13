@@ -30,15 +30,18 @@ const askCodexArgsSchema = z.object({
     .boolean()
     .default(false)
     .describe(
-      'Quick automation mode: enables workspace-write + on-failure approval. Alias for fullAuto.'
+      'Quick automation mode: enables workspace-write with approval=never. Sandboxing remains active.'
     ),
-  fullAuto: z.boolean().optional().describe('Full automation mode'),
-  approvalPolicy: z
-    .enum(['never', 'on-request', 'on-failure', 'untrusted'])
+  fullAuto: z
+    .boolean()
     .optional()
-    .describe('Approval: never, on-request, on-failure, untrusted'),
+    .describe('Compatibility alias for workspace-write with approval=never (not --yolo)'),
+  approvalPolicy: z
+    .enum(['never', 'on-request', 'untrusted'])
+    .optional()
+    .describe('Approval: never, on-request, untrusted'),
   approval: z
-    .string()
+    .enum(['never', 'on-request', 'untrusted'])
     .optional()
     .describe(`Approval policy: ${Object.values(APPROVAL_POLICIES).join(', ')}`),
   sandboxMode: z
@@ -118,10 +121,10 @@ const askCodexArgsSchema = z.object({
     .optional()
     .describe('Maximum tokens for tool outputs (100-10,000). Controls response verbosity.'),
   reasoningEffort: z
-    .enum(['low', 'medium', 'high', 'xhigh'])
+    .enum(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'])
     .optional()
     .describe(
-      'Reasoning depth. Omit to use Codex CLI default (medium). Set "high" or "xhigh" for complex tasks (refactors, deep analysis, multi-file changes); "low" for trivial lookups.'
+      'Reasoning depth. Omit to use the CLI default. max/ultra are model-dependent GPT-5.6 options; ultra may delegate to subagents.'
     ),
   // Session management (v1.4.0+)
   sessionId: z
@@ -155,6 +158,23 @@ const askCodexArgsSchema = z.object({
     .describe(
       'Write final Codex message to file path. Useful for CI/CD result capture (Codex CLI v0.95.0+)'
     ),
+  strictConfig: z
+    .boolean()
+    .optional()
+    .describe('Fail when config.toml contains fields unknown to the installed Codex CLI'),
+  ephemeral: z.boolean().optional().describe('Run without persisting Codex session files to disk'),
+  ignoreUserConfig: z
+    .boolean()
+    .optional()
+    .describe('Ignore $CODEX_HOME/config.toml for this run; authentication is still loaded'),
+  ignoreRules: z
+    .boolean()
+    .optional()
+    .describe('Ignore user and project execpolicy .rules files for this run'),
+  bypassHookTrust: z
+    .boolean()
+    .optional()
+    .describe('DANGEROUS: run enabled hooks without persisted hook trust'),
   responseMode: z
     .enum(['clean', 'full'])
     .default('clean')
@@ -212,11 +232,22 @@ export const askCodexTool: UnifiedTool = {
       personality,
       skipGitRepoCheck,
       outputLastMessage,
+      strictConfig,
+      ephemeral,
+      ignoreUserConfig,
+      ignoreRules,
+      bypassHookTrust,
       responseMode,
     } = args;
 
     if (!prompt?.trim()) {
       throw new Error(ERROR_MESSAGES.NO_PROMPT_PROVIDED);
+    }
+
+    if (ephemeral && sessionId) {
+      throw new Error(
+        'ephemeral cannot be combined with sessionId because the session is not persisted'
+      );
     }
 
     if (changeMode && chunkIndex && chunkCacheKey) {
@@ -263,7 +294,7 @@ export const askCodexTool: UnifiedTool = {
         prompt as string,
         {
           model: model as string,
-          fullAuto: Boolean(fullAuto ?? sandbox),
+          fullAuto: Boolean(fullAuto || sandbox),
           approvalPolicy: approvalPolicy as any,
           approval: approval as string,
           sandboxMode: sandboxMode as any,
@@ -281,13 +312,25 @@ export const askCodexTool: UnifiedTool = {
           disableFeatures: disableFeatures as string[],
           addDirs: addDirs as string[],
           toolOutputTokenLimit: toolOutputTokenLimit as number,
-          reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'xhigh' | undefined,
+          reasoningEffort: reasoningEffort as
+            | 'low'
+            | 'medium'
+            | 'high'
+            | 'xhigh'
+            | 'max'
+            | 'ultra'
+            | undefined,
           codexConversationId, // Pass conversation ID for resume
           changeMode: Boolean(changeMode), // Pass changeMode for format instructions
           outputSchema,
           personality: personality as 'pragmatic' | 'friendly' | undefined,
           skipGitRepoCheck: Boolean(skipGitRepoCheck),
           outputLastMessage: outputLastMessage as string | undefined,
+          strictConfig: Boolean(strictConfig),
+          ephemeral: Boolean(ephemeral),
+          ignoreUserConfig: Boolean(ignoreUserConfig),
+          ignoreRules: Boolean(ignoreRules),
+          bypassHookTrust: Boolean(bypassHookTrust),
         },
         onProgress
       );

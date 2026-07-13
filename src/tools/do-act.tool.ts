@@ -30,7 +30,10 @@ const doActArgsSchema = z.object({
     .describe(
       `Optional model override. Known: ${Object.values(MODELS).join(', ')}. If omitted, uses your Codex CLI default (~/.codex/config.toml).`
     ),
-  fullAuto: z.boolean().optional().describe('Full automation mode'),
+  fullAuto: z
+    .boolean()
+    .optional()
+    .describe('Compatibility alias for workspace-write with approval=never'),
   sandboxMode: z
     .enum(['read-only', 'workspace-write', 'danger-full-access'])
     .optional()
@@ -38,7 +41,7 @@ const doActArgsSchema = z.object({
   workingDir: z.string().optional().describe('Working directory'),
   timeout: z.number().default(600000).describe('Codex timeout per attempt in ms. Default: 10min'),
   reasoningEffort: z
-    .enum(['low', 'medium', 'high', 'xhigh'])
+    .enum(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'])
     .default('high')
     .describe(
       'Reasoning depth. Default: high (act-check-fix loops benefit from depth so retries converge). Override with "xhigh" for hard tasks, "medium" for simple verifiable steps.'
@@ -144,7 +147,7 @@ export const doActTool: UnifiedTool = {
 
     const codexOpts = {
       model: model as string | undefined,
-      fullAuto: fullAuto !== false, // default true — do-act needs write access
+      fullAuto: fullAuto !== false, // automation compatibility mode; sandbox remains active
       sandboxMode: (sandboxMode as any) ?? 'workspace-write',
       workingDir: resolvedDir,
       timeout: timeout as number,

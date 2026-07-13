@@ -1,5 +1,43 @@
 # Changelog
 
+## [2.4.0] - 2026-07-13
+
+### Added
+
+- **GPT-5.6 model family**: added `gpt-5.6`, `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`
+- **New reasoning levels**: added model-dependent `max` and `ultra`; `ultra` may delegate work to subagents
+- **Current Codex exec flags** for `ask-codex`:
+  - `strictConfig` → `--strict-config`
+  - `ephemeral` → `--ephemeral`
+  - `ignoreUserConfig` → `--ignore-user-config`
+  - `ignoreRules` → `--ignore-rules`
+  - `bypassHookTrust` → `--dangerously-bypass-hook-trust`
+- **CLI compatibility audit** documenting current commands, wrapped flags, intentional exclusions, security guidance, and remaining recommendations
+
+### Changed
+
+- Synced model recommendations with Codex CLI `0.144.3`: Sol for complex open-ended work, Terra for everyday work, and Luna for clear repeatable tasks
+- `sandbox: true` and `fullAuto: true` now expand to `--sandbox workspace-write --ask-for-approval never`; the compatibility aliases keep sandboxing enabled
+- Native `--search` is now used by itself on supported CLIs; deprecated `web_search_request` is only retained as a fallback for old versions
+- Approval schemas and completions now expose only current values: `untrusted`, `on-request`, and `never`
+- Renamed the case-sensitive MCP tool registration from `Help` to the documented `help`
+- Updated the registered tool count to 13 and refreshed README, API examples, model, sandbox, configuration, and CLI documentation
+
+### Fixed
+
+- Removed generated `--full-auto` arguments, which current Codex CLI rejects
+- Removed generated `on-failure` approval values, which current Codex CLI rejects
+- Fixed object-form `config` overrides to emit repeatable `-c key=value` arguments instead of one invalid comma-joined value; nested objects now use dotted paths
+- Fixed `sandbox: true` being ignored when `fullAuto: false` was explicitly present
+- Rejected contradictory `ephemeral` plus `sessionId` requests because ephemeral sessions cannot provide MCP conversation continuity
+- Fixed the `version` tool reporting hard-coded server version `2.1.1`; it now reads the package version at runtime
+- Fixed `changeMode` parsing for fenced OLD/NEW blocks that include an info string such as `text` or `diff`
+
+### Validation
+
+- Verified command and flag parsing against Codex CLI `0.144.3`
+- Passed TypeScript lint/build, VitePress documentation build, Prettier, MCP registry smoke test, and `git diff --check`
+
 ## [2.3.0] - 2026-05-01
 
 ### Added

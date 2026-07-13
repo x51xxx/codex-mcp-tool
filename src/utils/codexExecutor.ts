@@ -15,7 +15,6 @@ export interface CodexExecutionResult {
 export enum ApprovalPolicy {
   Never = 'never',
   OnRequest = 'on-request',
-  OnFailure = 'on-failure',
   Untrusted = 'untrusted',
 }
 
@@ -51,7 +50,7 @@ export interface CodexExecOptions {
   // New parameters (v1.3.0+)
   readonly addDirs?: string[]; // Additional writable directories
   readonly toolOutputTokenLimit?: number; // Max tokens for tool outputs (100-10,000)
-  readonly reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh'; // Reasoning depth level
+  readonly reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
   // Session/Resume support (v1.4.0+)
   readonly codexConversationId?: string; // Native Codex conversation ID for resume
   // Change mode support
@@ -61,6 +60,11 @@ export interface CodexExecOptions {
   readonly personality?: 'pragmatic' | 'friendly'; // Communication style
   readonly skipGitRepoCheck?: boolean; // Skip git repo validation
   readonly outputLastMessage?: string; // Write final message to file path
+  readonly strictConfig?: boolean; // Fail on unknown config.toml fields
+  readonly ephemeral?: boolean; // Do not persist session files
+  readonly ignoreUserConfig?: boolean; // Ignore $CODEX_HOME/config.toml
+  readonly ignoreRules?: boolean; // Ignore user/project execpolicy rules
+  readonly bypassHookTrust?: boolean; // Dangerous: bypass persisted hook trust
 }
 
 /**

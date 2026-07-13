@@ -18,7 +18,7 @@ MCP server connecting Claude/Cursor to Codex CLI. Enables code analysis via `@` 
 - **Native Resume** — Uses `codex resume` for context preservation (CLI v0.36.0+)
 - **Local OSS Models** — Run with Ollama or LM Studio via `localProvider`
 - **Web Search** — Research capabilities with `search: true`
-- **Sandbox Mode** — Safe code execution with `--full-auto`
+- **Sandbox Mode** — Safe automation with explicit sandbox and approval policies
 - **Change Mode** — Structured OLD/NEW patch output for refactoring
 - **Brainstorming** — SCAMPER, design-thinking, lateral thinking frameworks
 - **Health Diagnostics** — CLI version, features, and session monitoring
@@ -55,7 +55,7 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 'analyze @package.json and list dependencies';
 
 // With specific model
-'use codex with model gpt-5.5 to analyze @algorithm.py';
+'use codex with model gpt-5.6-sol to analyze @algorithm.py';
 
 // Multi-turn conversations (v1.4.0+)
 'ask codex sessionId:"my-project" prompt:"explain @src/"';
@@ -76,31 +76,43 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 
 ## Tools
 
-| Tool            | Description                                            |
-| --------------- | ------------------------------------------------------ |
-| `ask-codex`     | Execute Codex CLI with file analysis, models, sessions |
-| `brainstorm`    | Generate ideas with SCAMPER, design-thinking, etc.     |
-| `list-sessions` | View/delete/clear conversation sessions                |
-| `health`        | Diagnose CLI installation, version, features           |
-| `ping` / `help` | Test connection, show CLI help                         |
+| Tool             | Description                                                         |
+| ---------------- | ------------------------------------------------------------------- |
+| `ask-codex`      | Execute Codex CLI with files, models, sessions, and safety controls |
+| `batch-codex`    | Run multiple atomic Codex tasks sequentially or concurrently        |
+| `review-changes` | Run the native non-interactive Codex review command                 |
+| `do-act`         | Execute, verify with a shell command, and retry fixes               |
+| `brainstorm`     | Generate ideas with structured creative frameworks                  |
+| `list-sessions`  | View, delete, or clear MCP conversation mappings                    |
+| `list-skills`    | List skills visible from the selected workspace                     |
+| `health`         | Diagnose CLI installation, version, features, and sessions          |
+| `fetch-chunk`    | Retrieve a chunk from cached change-mode output                     |
+| `ping`           | Test the MCP connection                                             |
+| `help`           | Return current `codex --help` output                                |
+| `version`        | Report Codex CLI, Node.js, platform, and package versions           |
+| `timeout-test`   | Exercise keepalive and timeout behavior                             |
 
 ## Models
 
 By default the `model` parameter is **omitted** and Codex CLI applies the
-default model from your `~/.codex/config.toml` (e.g. `model = "gpt-5.5"`).
+default model from your `~/.codex/config.toml` (for example `model = "gpt-5.6-sol"`).
 Pass `model` only when you need to override the configured default for a
 single call. Reasoning depth is calibrated per tool:
 
-- `ask-codex` — uses Codex CLI default reasoning (medium). Pass `reasoningEffort: "high"` / `"xhigh"` for harder tasks.
+- `ask-codex` — uses the Codex CLI default reasoning (medium). Increase it only when the task needs more planning or checking.
 - `brainstorm`, `do-act`, `review-changes` — default `reasoningEffort: "high"` (creative ideation, act-check-fix loops, and code review benefit from deeper reasoning).
 
-| Model           | Use Case                                                  |
-| --------------- | --------------------------------------------------------- |
-| `gpt-5.5`       | Frontier model for complex coding, research, agentic work |
-| `gpt-5.4`       | Strong model for everyday coding                          |
-| `gpt-5.4-mini`  | Small, fast, cost-efficient for simpler coding tasks      |
-| `gpt-5.3-codex` | Coding-optimized model                                    |
-| `gpt-5.2`       | Optimized for professional work and long-running agents   |
+| Model           | Recommendation                                         |
+| --------------- | ------------------------------------------------------ |
+| `gpt-5.6-sol`   | Complex, ambiguous, high-value work; strongest default |
+| `gpt-5.6-terra` | Everyday coding with a better capability/cost balance  |
+| `gpt-5.6-luna`  | Clear, repeatable, high-volume tasks                   |
+| `gpt-5.5`       | Previous-generation fallback                           |
+| `gpt-5.4`       | Professional coding fallback                           |
+| `gpt-5.4-mini`  | Small, fast, cost-efficient fallback                   |
+
+GPT-5.6 Sol and Terra can expose `max` and `ultra` reasoning. `ultra` may
+delegate work to subagents; most tasks should remain on `medium` or `high`.
 
 ## Key Features
 
@@ -138,27 +150,34 @@ Run with local Ollama or LM Studio instead of OpenAI:
 
 ### Advanced Options
 
-| Parameter              | Description                               |
-| ---------------------- | ----------------------------------------- |
-| `model`                | Model selection                           |
-| `sessionId`            | Enable conversation continuity            |
-| `sandbox`              | Enable `--full-auto` mode                 |
-| `search`               | Enable web search                         |
-| `changeMode`           | Structured OLD/NEW edits                  |
-| `addDirs`              | Additional writable directories           |
-| `toolOutputTokenLimit` | Cap response verbosity (100-10,000)       |
-| `reasoningEffort`      | Reasoning depth: low, medium, high, xhigh |
-| `oss`                  | Use local OSS model provider              |
-| `localProvider`        | Local provider: `lmstudio` or `ollama`    |
+| Parameter              | Description                                       |
+| ---------------------- | ------------------------------------------------- |
+| `model`                | Model selection                                   |
+| `sessionId`            | Enable conversation continuity                    |
+| `sandbox`              | Compatibility automation: workspace-write + never |
+| `search`               | Enable web search                                 |
+| `changeMode`           | Structured OLD/NEW edits                          |
+| `addDirs`              | Additional writable directories                   |
+| `toolOutputTokenLimit` | Cap response verbosity (100-10,000)               |
+| `reasoningEffort`      | low, medium, high, xhigh, max, ultra              |
+| `oss`                  | Use local OSS model provider                      |
+| `localProvider`        | Local provider: `lmstudio` or `ollama`            |
+| `strictConfig`         | Fail on unknown Codex configuration keys          |
+| `ephemeral`            | Do not persist Codex session files                |
+| `ignoreUserConfig`     | Ignore `$CODEX_HOME/config.toml`                  |
+| `ignoreRules`          | Ignore execpolicy `.rules` files                  |
 
 ## CLI Compatibility
 
-| Version  | Features                         |
-| -------- | -------------------------------- |
-| v0.60.0+ | GPT-5.2 model family             |
-| v0.59.0+ | `--add-dir`, token limits        |
-| v0.52.0+ | Native `--search` flag           |
-| v0.36.0+ | Native `codex resume` (sessions) |
+Validated against Codex CLI `0.144.3`. The server keeps older feature guards,
+but current releases are recommended. Notable current behavior:
+
+- `--full-auto` and approval policy `on-failure` have been removed by Codex CLI.
+- MCP `sandbox: true` / `fullAuto: true` remain compatibility aliases for
+  `--sandbox workspace-write --ask-for-approval never`; they do not bypass the sandbox.
+- Native `--search` is used without the deprecated `web_search_request` feature.
+- Current `exec` flags include `--strict-config`, `--ephemeral`,
+  `--ignore-user-config`, and `--ignore-rules`.
 
 ## Troubleshooting
 
@@ -170,6 +189,15 @@ codex login        # Authenticate
 Use `health` tool for diagnostics: `'use health verbose:true'`
 
 ## Migration
+
+**v2.3.x → v2.4.0:** Codex CLI `0.144.3` compatibility audit; added GPT-5.6
+Sol/Terra/Luna, `max`/`ultra` reasoning, current exec flags, native-only search,
+and safe compatibility handling for the removed `--full-auto` flag and
+`on-failure` approval policy.
+
+**Current CLI compatibility:** added GPT-5.6 Sol/Terra/Luna, `max`/`ultra`
+reasoning, current exec flags, native-only search, and safe expansion of the
+removed `--full-auto` compatibility option.
 
 **v2.2.x → v2.3.0:** `gpt-5.5` as new default, added `gpt-5.4-mini`, dropped retired models (`gpt-5.3-codex-spark`, `gpt-5.2-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex-mini`).
 

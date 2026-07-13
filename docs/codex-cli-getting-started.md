@@ -2,13 +2,25 @@
 
 ### CLI usage
 
-| Command            | Purpose                            | Example                         |
-| ------------------ | ---------------------------------- | ------------------------------- |
-| `codex`            | Interactive TUI                    | `codex`                         |
-| `codex "..."`      | Initial prompt for interactive TUI | `codex "fix lint errors"`       |
-| `codex exec "..."` | Non-interactive "automation mode"  | `codex exec "explain utils.ts"` |
+| Command             | Purpose                                     | Example                               |
+| ------------------- | ------------------------------------------- | ------------------------------------- |
+| `codex`             | Interactive TUI                             | `codex`                               |
+| `codex "..."`       | Interactive TUI with an initial prompt      | `codex "fix lint errors"`             |
+| `codex exec "..."`  | Non-interactive agent run                   | `codex exec "explain utils.ts"`       |
+| `codex exec resume` | Resume a non-interactive session            | `codex exec resume --last "continue"` |
+| `codex review`      | Native non-interactive code review          | `codex review --uncommitted`          |
+| `codex doctor`      | Diagnose install, config, auth, and runtime | `codex doctor`                        |
+| `codex plugin`      | Manage Codex plugins                        | `codex plugin --help`                 |
+| `codex features`    | Inspect feature flags                       | `codex features list`                 |
 
-Key flags: `--model/-m`, `--ask-for-approval/-a`.
+Key global flags include `--model/-m`, `--sandbox/-s`,
+`--ask-for-approval/-a`, `--search`, `--add-dir`, `--strict-config`,
+`--oss`, and `--local-provider`. Current approval values are `untrusted`,
+`on-request`, and `never`.
+
+Current `exec`-only flags include `--skip-git-repo-check`, `--ephemeral`,
+`--ignore-user-config`, `--ignore-rules`, `--output-schema`, `--json`, and
+`--output-last-message/-o`.
 
 <!--
 Resume options:
@@ -33,12 +45,15 @@ codex "explain this codebase to me"
 ```
 
 ```shell
-codex --full-auto "create the fanciest todo-list app"
+codex --sandbox workspace-write --ask-for-approval never \
+  exec "create the fanciest todo-list app"
 ```
 
-That's it - Codex will scaffold a file, run it inside a sandbox, install any
-missing dependencies, and show you the live result. Approve the changes and
-they'll be committed to your working directory.
+The removed `--full-auto` flag should not be used with current Codex CLI.
+For non-interactive automation, explicitly select a sandbox and use
+`--ask-for-approval never`; failed escalations are returned to the model while
+the workspace sandbox remains active. Use the bypass flag only inside an
+externally hardened environment.
 
 ### Example prompts
 
@@ -72,11 +87,11 @@ Typing `@` triggers a fuzzy-filename search over the workspace root. Use up/down
 
 #### Image input
 
-Paste images directly into the composer (Ctrl+V / Cmd+V) to attach them to your prompt. You can also attach files via the CLI using `-i/--image` (comma‑separated):
+Paste images directly into the composer (Ctrl+V / Cmd+V) to attach them to your prompt. You can also attach files via repeatable `-i/--image` flags:
 
 ```bash
 codex -i screenshot.png "Explain this error"
-codex --image img1.png,img2.jpg "Summarize these diagrams"
+codex --image img1.png --image img2.jpg "Summarize these diagrams"
 ```
 
 #### Esc–Esc to edit a previous message

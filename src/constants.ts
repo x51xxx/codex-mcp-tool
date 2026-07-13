@@ -24,22 +24,26 @@ export const STATUS_MESSAGES = {
   PROCESSING_COMPLETE: '✅ Analysis completed successfully',
 } as const;
 
-// Models (Available in Codex CLI — synced with ~/.codex/models_cache.json @ CLI v0.128.0)
+// Current Codex CLI models — synced with official docs and the local model cache @ v0.144.3
 export const MODELS = {
-  GPT5_5: 'gpt-5.5', // Default: frontier model for complex coding, research, and real-world work
-  GPT5_4: 'gpt-5.4', // Strong model for everyday coding
-  GPT5_4_MINI: 'gpt-5.4-mini', // Small, fast, cost-efficient for simpler coding tasks
-  GPT5_3_CODEX: 'gpt-5.3-codex', // Coding-optimized model
-  GPT5_2: 'gpt-5.2', // Optimized for professional work and long-running agents
+  GPT5_6: 'gpt-5.6', // Moving alias for the current GPT-5.6 default (Sol today)
+  GPT5_6_SOL: 'gpt-5.6-sol', // Frontier model for complex, open-ended, high-value work
+  GPT5_6_TERRA: 'gpt-5.6-terra', // Balanced everyday workhorse
+  GPT5_6_LUNA: 'gpt-5.6-luna', // Fast, affordable model for clear, repeatable tasks
+  GPT5_5: 'gpt-5.5', // Previous-generation frontier model
+  GPT5_4: 'gpt-5.4', // Professional coding and agentic workflows
+  GPT5_4_MINI: 'gpt-5.4-mini', // Small, fast, cost-efficient model
 } as const;
 
-// Reasoning effort levels (Available for gpt-5.3-codex model)
-// Note: Codex CLI parser accepts 'none'/'minimal' but OpenAI API rejects them for this model
+// Reasoning levels exposed by the current Codex CLI model picker.
+// Availability is model-dependent: max/ultra are primarily GPT-5.6 Sol/Terra options.
 export const REASONING_EFFORTS = {
   LOW: 'low', // Fast responses with lighter reasoning
   MEDIUM: 'medium', // Default: Balances speed and reasoning depth
   HIGH: 'high', // Greater reasoning depth for complex problems
   XHIGH: 'xhigh', // Extra high reasoning depth for complex problems
+  MAX: 'max', // Maximum single-agent reasoning depth
+  ULTRA: 'ultra', // Maximum reasoning with automatic task delegation
 } as const;
 
 // Personality modes (Codex CLI v0.94.0+)
@@ -58,7 +62,6 @@ export const SANDBOX_MODES = {
 // Approval policies
 export const APPROVAL_POLICIES = {
   UNTRUSTED: 'untrusted',
-  ON_FAILURE: 'on-failure',
   ON_REQUEST: 'on-request',
   NEVER: 'never',
 } as const;
@@ -100,12 +103,12 @@ export const CLI = {
   // Command flags
   FLAGS: {
     MODEL: '-m',
-    SANDBOX: '-s', // legacy flag. For Codex prefer FULL_AUTO or SANDBOX/APPROVAL flags.
-    FULL_AUTO: '--full-auto',
+    SANDBOX: '-s',
     ASK_FOR_APPROVAL: '--ask-for-approval',
     SANDBOX_MODE: '--sandbox',
     APPROVAL: '-a',
     YOLO: '--dangerously-bypass-approvals-and-sandbox',
+    BYPASS_HOOK_TRUST: '--dangerously-bypass-hook-trust',
     CD: '--cd',
     PROMPT: '-p',
     HELP: '-help',
@@ -118,6 +121,7 @@ export const CLI = {
     LOCAL_PROVIDER: '--local-provider', // Specify local provider: lmstudio or ollama
     ENABLE: '--enable',
     DISABLE: '--disable',
+    STRICT_CONFIG: '--strict-config',
     // New flags (v1.3.0+)
     SEARCH: '--search', // Native web search flag (Codex CLI v0.52.0+)
     ADD_DIR: '--add-dir', // Additional writable directories (Codex CLI v0.59.0+)
@@ -127,6 +131,9 @@ export const CLI = {
     SKIP_GIT_REPO_CHECK: '--skip-git-repo-check', // Skip git repo check (Codex CLI v0.75.0+)
     OUTPUT_SCHEMA: '--output-schema', // JSON Schema constraint (Codex CLI v0.95.0+)
     OUTPUT_LAST_MESSAGE: '-o', // Write final message to file (Codex CLI v0.95.0+)
+    EPHEMERAL: '--ephemeral',
+    IGNORE_USER_CONFIG: '--ignore-user-config',
+    IGNORE_RULES: '--ignore-rules',
   },
   // Default values
   DEFAULTS: {
@@ -148,10 +155,10 @@ export interface ToolArguments {
   model?: string;
   sandbox?: boolean | string;
   // Codex approvals/sandbox controls
-  approvalPolicy?: 'never' | 'on-request' | 'on-failure' | 'untrusted';
+  approvalPolicy?: 'never' | 'on-request' | 'untrusted';
   approval?: string; // Alternative to approvalPolicy
   sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access';
-  fullAuto?: boolean | string; // convenience alias for --full-auto
+  fullAuto?: boolean | string; // compatibility alias for workspace-write + never
   yolo?: boolean | string; // --dangerously-bypass-approvals-and-sandbox
   cd?: string; // --cd path
   workingDir?: string; // Alternative to cd
@@ -179,13 +186,18 @@ export interface ToolArguments {
   // New parameters (v1.3.0+)
   addDirs?: string[]; // Additional writable directories beyond workspace
   toolOutputTokenLimit?: number; // Max tokens for tool outputs (100-10,000)
-  reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh'; // Reasoning depth level
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
 
   // New parameters (v2.0.0)
   outputSchema?: string | Record<string, any>; // JSON Schema path or inline schema
   personality?: 'pragmatic' | 'friendly'; // Communication style
   skipGitRepoCheck?: boolean; // Skip git repo validation
   outputLastMessage?: string; // Write final message to file path
+  strictConfig?: boolean; // Fail on unknown config.toml fields
+  ephemeral?: boolean; // Do not persist session files
+  ignoreUserConfig?: boolean; // Ignore $CODEX_HOME/config.toml
+  ignoreRules?: boolean; // Ignore user/project execpolicy rules
+  bypassHookTrust?: boolean; // Dangerous: run enabled hooks without persisted trust
 
   // Do-Act tool
   verify?: { command: string; exitCode?: number; timeout?: number };

@@ -63,7 +63,7 @@ GLOBAL OPTIONS:
 EXAMPLES:
   codex exec "explain this code"
   codex exec "refactor @file.ts"
-  codex --model gpt-5.1-codex-max exec "complex task"
+  codex --model gpt-5.6-sol exec "complex task"
 ```
 
 ## Use Cases
@@ -81,7 +81,7 @@ Discover what Codex CLI can do:
   "name": "ask-codex",
   "arguments": {
     "prompt": "use the feature I just learned about",
-    "model": "gpt-5.1-codex-max"
+    "model": "gpt-5.6-sol"
   }
 }
 ```
@@ -112,10 +112,10 @@ When unsure about syntax:
 
 Help output includes available models:
 
-- gpt-5.1-codex-max (default, highest reliability)
-- gpt-5.1-codex (optimized for codex)
-- gpt-5.1-codex-mini (fast, cost-effective)
-- gpt-5.1 (general reasoning)
+- gpt-5.6-sol (complex, open-ended work)
+- gpt-5.6-terra (balanced everyday work)
+- gpt-5.6-luna (fast, repeatable work)
+- gpt-5.6 (moving alias for the current GPT-5.6 default)
 
 ## Integration with Other Tools
 
@@ -133,7 +133,7 @@ Help output includes available models:
   "name": "ask-codex",
   "arguments": {
     "prompt": "analyze @src/",
-    "model": "gpt-5.1-codex-mini",
+    "model": "gpt-5.6-luna",
     "sandboxMode": "read-only"
   }
 }
@@ -149,10 +149,9 @@ Help output includes available models:
 
 ### Approval Policies
 
-- `never` - No approvals needed
-- `on-request` - Approve each action
-- `on-failure` - Approve on errors
-- `untrusted` - Always require approval
+- `never` - Never prompt; denied escalations fail
+- `on-request` - Let Codex request approvals when needed
+- `untrusted` - Only trusted commands run without approval
 
 ### File Reference Syntax
 

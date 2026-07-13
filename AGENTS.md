@@ -45,9 +45,9 @@ Requirements: Node `>=18`, `codex` CLI installed and authenticated.
 - OSS mode: model name passed as-is (skip OpenAI model validation)
 - `search`, `oss`, `localProvider` auto-set `--sandbox workspace-write`
 
-### Tools (11 registered)
+### Tools (13 registered)
 
-`ask-codex`, `batch-codex`, `review-changes`, `brainstorm`, `fetch-chunk`, `list-sessions`, `health`, `ping`, `help`, `version`, `timeout-test`
+`ask-codex`, `batch-codex`, `review-changes`, `do-act`, `brainstorm`, `fetch-chunk`, `list-sessions`, `list-skills`, `health`, `ping`, `help`, `version`, `timeout-test`
 
 ## Adding a New Tool
 

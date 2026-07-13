@@ -1,211 +1,91 @@
-# Model Selection
+# Model selection
 
-The Codex MCP Tool provides access to OpenAI's Codex CLI models optimized for software engineering tasks.
+The MCP server normally omits `--model`, so Codex CLI selects the model from
+your account and `$CODEX_HOME/config.toml`. Pass `model` only when a task needs
+a deliberate override.
 
-## Available Models
+This list was verified against Codex CLI `0.144.3` and its model cache on
+2026-07-13. Availability still depends on account, workspace, and rollout.
 
-| Model             | Context  | Best For                                         | Notes                            |
-| ----------------- | -------- | ------------------------------------------------ | -------------------------------- |
-| **gpt-5.5**       | Extended | Complex coding, computer use, research workflows | Preferred default when available |
-| **gpt-5.4**       | Extended | Professional coding and agentic workflows        | Primary fallback                 |
-| **gpt-5.4-mini**  | Extended | Fast coding tasks and subagents                  | Lower latency and cost           |
-| **gpt-5.3-codex** | Extended | Complex multi-file edits, architecture analysis  | Frontier coding model            |
-| **gpt-5.2**       | Extended | General reasoning, broad knowledge               | Alternative general model        |
+## Recommended models
 
-## How to Select a Model
+| Model           | Best for                             | Guidance                                   |
+| --------------- | ------------------------------------ | ------------------------------------------ |
+| `gpt-5.6-sol`   | Complex, open-ended, high-value work | Strongest default when quality matters     |
+| `gpt-5.6-terra` | Everyday coding and tool use         | Balanced capability and cost               |
+| `gpt-5.6-luna`  | Clear, repeatable, high-volume work  | Fastest and most affordable GPT-5.6 option |
+| `gpt-5.5`       | Previous-generation frontier work    | Compatibility fallback                     |
+| `gpt-5.4`       | Professional coding workflows        | Compatibility fallback                     |
+| `gpt-5.4-mini`  | Small, well-scoped tasks             | Low-cost compatibility fallback            |
 
-### Using Codex CLI Directly
+The official Codex guidance is to start with Sol when unsure, use Terra as the
+everyday workhorse, and use Luna when the task is specific and success is easy
+to verify.
+
+## Reasoning effort
+
+Supported MCP values are `low`, `medium`, `high`, `xhigh`, `max`, and `ultra`.
+The selected model and account determine which values are actually available.
+
+- Start with `medium`.
+- Use `low` for quick, tightly scoped tasks.
+- Use `high` or `xhigh` for difficult multi-step work.
+- Use `max` only for the hardest single-agent problems where latency matters less.
+- Use `ultra` only when the task can benefit from automatic delegation to subagents.
+
+Most tasks do not need `max` or `ultra`. In the verified CLI cache, Sol and
+Terra expose both; Luna exposes `max` but not `ultra`.
+
+## Examples
+
+Direct CLI:
 
 ```bash
-# Specify model with --model flag
-codex --model gpt-5.5 "analyze @src/**/*.ts for performance issues"
-codex --model gpt-5.4 "refactor @utils.js"
-codex --model gpt-5.4-mini "quick review of @utils.js"
+codex exec -m gpt-5.6-sol "Review the current changes"
+codex exec -m gpt-5.6-terra "Refactor the request parser"
+codex exec -m gpt-5.6-luna "Classify these build errors"
 ```
 
-### Using MCP Tool (ask-codex)
+MCP invocation:
 
-```javascript
-// Natural language
-"use gpt-5.5 to analyze the entire codebase architecture"
-"ask codex to solve this algorithm problem"
-"quick check with gpt-5.4-mini on this function"
-
-// Direct tool invocation
+```json
 {
-  "name": "ask-codex",
-  "arguments": {
-    "prompt": "analyze @src/core for optimization opportunities",
-    "model": "gpt-5.5"
-  }
+  "prompt": "Audit @src for command-building regressions",
+  "model": "gpt-5.6-sol",
+  "reasoningEffort": "high"
 }
 ```
 
-### Using Brainstorm Tool
+For the default model, omit `model`:
 
-```javascript
+```json
 {
-  "name": "brainstorm",
-  "arguments": {
-    "prompt": "innovative features for our app",
-    "model": "gpt-5.5",
-    "methodology": "lateral"
-  }
+  "prompt": "Explain @src/utils/codexCommandBuilder.ts"
 }
 ```
 
-## Model Selection Guidelines
-
-### By Task Type
-
-#### Code Review & Analysis
-
-- **Quick review**: gpt-5.4-mini (fast, efficient)
-- **Comprehensive review**: gpt-5.5 (best quality when available)
-- **Security audit**: gpt-5.5 (highest reliability)
-
-#### Architecture & Design
-
-- **System design**: gpt-5.5 (complex analysis)
-- **API design**: gpt-5.4 (deep reasoning)
-- **Quick prototypes**: gpt-5.4-mini (speed)
-
-#### Bug Investigation
-
-- **Complex bugs**: gpt-5.5 (thorough analysis)
-- **Performance issues**: gpt-5.4 (balanced)
-- **Simple fixes**: gpt-5.4-mini (quick turnaround)
-
-#### Documentation
-
-- **API docs**: gpt-5.5 (comprehensive)
-- **Quick comments**: gpt-5.4-mini (efficient)
-- **Architecture docs**: gpt-5.5 (thorough)
-
-#### Refactoring
-
-- **Large-scale**: gpt-5.5 (handles complexity)
-- **Standard refactoring**: gpt-5.4 (balanced)
-- **Simple cleanup**: gpt-5.4-mini (cost-effective)
-
-## Cost Optimization Strategies
-
-### 1. Start Small, Scale Up
-
-```bash
-# Initial exploration
-codex --model gpt-5.4-mini "@src quick overview"
-
-# Detailed analysis if needed
-codex --model gpt-5.4 "@src comprehensive analysis"
-
-# Deep dive for critical issues
-codex --model gpt-5.5 "@src/critical solve complex bug"
-```
-
-### 2. Match Model to Task Complexity
-
-```javascript
-// Simple tasks - use mini model
-{ "prompt": "add comments", "model": "gpt-5.4-mini" }
-
-// Medium complexity - flagship model
-{ "prompt": "refactor module", "model": "gpt-5.4" }
-
-// High complexity - latest frontier
-{ "prompt": "redesign architecture", "model": "gpt-5.5" }
-```
-
-## Performance Characteristics
-
-### Response Times
-
-- **gpt-5.4-mini**: Fast responses, optimized for speed and cost
-- **gpt-5.4**: Balanced latency, strong reasoning
-- **gpt-5.5**: Best quality for complex tasks
-- **gpt-5.2**: Variable based on task type
-
-### Reliability
-
-- **gpt-5.5**: Latest frontier coding and agentic workflows
-- **gpt-5.4**: Flagship professional coding work
-- **gpt-5.3-codex**: Complex software engineering
-- **gpt-5.4-mini**: Good for simple tasks and subagents
-- **gpt-5.2**: Best as a general-reasoning fallback
-
-## Setting Default Models
-
-### Configuration File
-
-In your Codex config (`~/.codex/config.toml`):
+Set a persistent default in `$CODEX_HOME/config.toml`:
 
 ```toml
-[defaults]
-model = "gpt-5.5"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "medium"
 ```
 
-### Per-Request Override
+## Local models
 
-```javascript
+Local provider model names are passed through without OpenAI model validation:
+
+```json
 {
-  "prompt": "analyze code",
-  "model": "gpt-5.4-mini"  // Override default
+  "prompt": "Explain @src",
+  "localProvider": "ollama",
+  "model": "qwen3:8b"
 }
 ```
 
-### Local OSS Models
+There is no MCP-side automatic fallback chain. When no override is supplied,
+Codex CLI remains the source of truth. An unknown explicit model is passed
+through so newer rollouts and local providers are not blocked by this package.
 
-Use `oss: true` to run with a local model provider. Specify `localProvider` to choose between LM Studio and Ollama:
-
-```javascript
-// Auto-select local provider (config default or interactive selection)
-{ "prompt": "analyze code", "oss": true }
-
-// Explicitly use LM Studio
-{ "prompt": "analyze code", "localProvider": "lmstudio" }
-
-// Explicitly use Ollama (auto-enables --oss)
-{ "prompt": "analyze code", "localProvider": "ollama" }
-```
-
-## Model Fallback Chain
-
-The tool uses automatic fallback when a model is unavailable:
-
-```
-gpt-5.5 → gpt-5.4 → gpt-5.4-mini → gpt-5.3-codex → gpt-5.2
-```
-
-## Troubleshooting
-
-### Model Not Available
-
-```bash
-# Check available models
-codex -m
-
-# The tool will automatically fallback to available models
-```
-
-### Slow Responses
-
-```javascript
-// Switch to faster model
-{
-  "model": "gpt-5.4-mini"
-}
-```
-
-## Best Practices
-
-1. **Start with gpt-5.4-mini** for initial exploration
-2. **Use gpt-5.4** for deeper reasoning tasks
-3. **Reserve gpt-5.5** for complex, critical tasks
-4. **Consider gpt-5.2** for non-coding reasoning tasks
-5. **Monitor costs** and optimize model selection
-
-## See Also
-
-- [How It Works](./how-it-works.md) - Understanding model integration
-- [File Analysis](./file-analysis.md) - Optimizing file references for models
-- [Sandbox Modes](./sandbox.md) - Security with different models
+See the [official Codex model guide](https://developers.openai.com/codex/models)
+for current availability and recommendations.

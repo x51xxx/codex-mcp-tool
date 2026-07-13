@@ -39,7 +39,7 @@ export interface CodexCommandBuilderOptions {
   readonly disableFeatures?: string[];
   readonly addDirs?: string[];
   readonly toolOutputTokenLimit?: number;
-  readonly reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh';
+  readonly reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
   readonly useExec?: boolean;
   readonly concisePrompt?: boolean;
   readonly useStdinForLongPrompts?: boolean;
@@ -52,6 +52,11 @@ export interface CodexCommandBuilderOptions {
   readonly personality?: 'pragmatic' | 'friendly'; // Communication style
   readonly skipGitRepoCheck?: boolean; // Skip git repo validation
   readonly outputLastMessage?: string; // Write final message to file path
+  readonly strictConfig?: boolean; // Fail on unknown config.toml fields
+  readonly ephemeral?: boolean; // Do not persist session files
+  readonly ignoreUserConfig?: boolean; // Ignore $CODEX_HOME/config.toml
+  readonly ignoreRules?: boolean; // Ignore user/project execpolicy rules
+  readonly bypassHookTrust?: boolean; // Run enabled hooks without persisted trust
 }
 
 /**
@@ -97,7 +102,7 @@ export class CodexCommandBuilder {
     const isOssMode = !!(options?.oss || options?.localProvider);
     await this.addModelArg(options?.model, isOssMode);
 
-    // 4. Safety controls (yolo, fullAuto, approval, sandbox)
+    // 4. Safety controls (yolo, automation compatibility, approval, sandbox)
     this.addSafetyArgs(options);
 
     // 5. Working directory
@@ -130,10 +135,7 @@ export class CodexCommandBuilder {
       if (typeof options.config === 'string') {
         this.args.push(CLI.FLAGS.CONFIG, options.config);
       } else {
-        const configStr = Object.entries(options.config)
-          .map(([k, v]) => `${k}=${v}`)
-          .join(',');
-        this.args.push(CLI.FLAGS.CONFIG, configStr);
+        this.addConfigObject(options.config);
       }
     }
 
@@ -148,6 +150,14 @@ export class CodexCommandBuilder {
       for (const img of images) {
         this.args.push(CLI.FLAGS.IMAGE, img);
       }
+    }
+
+    // 13b. Runtime validation/trust flags supported before or after exec.
+    if (options?.strictConfig) {
+      this.args.push(CLI.FLAGS.STRICT_CONFIG);
+    }
+    if (options?.bypassHookTrust) {
+      this.args.push(CLI.FLAGS.BYPASS_HOOK_TRUST);
     }
 
     // 14. Command mode (exec or exec resume)
@@ -193,6 +203,7 @@ export class CodexCommandBuilder {
     await this.addSkipGitCheck(options);
     await this.addOutputSchema(options);
     await this.addOutputLastMessage(options);
+    this.addExecRuntimeArgs(options);
 
     // 15. Handle prompt (concise mode, stdin for large prompts)
     return this.handlePrompt(prompt, options);
@@ -222,8 +233,14 @@ export class CodexCommandBuilder {
     if (options?.approvalPolicy && options?.yolo) {
       throw new Error('Cannot use both yolo and approvalPolicy');
     }
+    if (options?.approval && options?.yolo) {
+      throw new Error('Cannot use both yolo and approval');
+    }
     if (options?.sandboxMode && options?.yolo) {
       throw new Error('Cannot use both yolo and sandboxMode');
+    }
+    if (options?.fullAuto && (options?.approvalPolicy || options?.approval)) {
+      throw new Error('Cannot combine fullAuto with an explicit approval policy');
     }
   }
 
@@ -259,13 +276,19 @@ export class CodexCommandBuilder {
   }
 
   /**
-   * Add safety control arguments (yolo, fullAuto, approval, sandbox)
+   * Add safety control arguments.
+   *
+   * Codex CLI removed --full-auto and the on-failure approval policy. Keep the
+   * MCP compatibility option by expanding it to a writable sandbox with no
+   * interactive approval prompts. This is not equivalent to --yolo: sandboxing
+   * remains enabled and escalation failures are returned to the model.
    */
   private addSafetyArgs(options?: CodexCommandBuilderOptions): void {
     if (options?.yolo) {
       this.args.push(CLI.FLAGS.YOLO);
     } else if (options?.fullAuto) {
-      this.args.push(CLI.FLAGS.FULL_AUTO);
+      this.args.push(CLI.FLAGS.SANDBOX_MODE, options?.sandboxMode || 'workspace-write');
+      this.args.push(CLI.FLAGS.ASK_FOR_APPROVAL, 'never');
     } else {
       // Approval policy
       if (options?.approvalPolicy) {
@@ -310,29 +333,22 @@ export class CodexCommandBuilder {
    * Add search and feature flags (shared 69-line logic from both functions)
    */
   private async addSearchAndFeatures(options?: CodexCommandBuilderOptions): Promise<void> {
-    // Web Search - Dual-flag approach for backward compatibility (v1.3.0+)
+    // Prefer native web search. Only old CLIs need the legacy feature flag.
     if (options?.search) {
       // Check if native --search flag is supported (Codex CLI v0.52.0+)
       const hasNativeSearch = await supportsNativeSearch();
 
       if (hasNativeSearch) {
-        // Use native --search flag for newer versions
         this.args.push(CLI.FLAGS.SEARCH);
         Logger.debug('Using native --search flag (Codex CLI v0.52.0+)');
       } else {
         Logger.debug(
           'Native --search flag not supported, falling back to web_search_request feature flag'
         );
+        this.args.push(CLI.FLAGS.ENABLE, 'web_search_request');
       }
 
-      // Always add feature flag for backward compatibility
-      const enableFeatures = [...(options?.enableFeatures || [])];
-      if (!enableFeatures.includes('web_search_request')) {
-        enableFeatures.push('web_search_request');
-      }
-
-      // Add all features to args
-      for (const feature of enableFeatures) {
+      for (const feature of options?.enableFeatures || []) {
         this.args.push(CLI.FLAGS.ENABLE, feature);
       }
     } else {
@@ -378,18 +394,18 @@ export class CodexCommandBuilder {
   }
 
   /**
-   * Add reasoning effort level (low, medium, high, xhigh)
-   * Note: 'none' and 'minimal' are accepted by Codex CLI parser but rejected by OpenAI API for gpt-5.3-codex
+   * Add reasoning effort level. The selected model remains the source of truth
+   * for whether max or ultra is available.
    */
   private addReasoningEffort(options?: CodexCommandBuilderOptions): void {
     if (options?.reasoningEffort) {
-      const validEfforts = ['low', 'medium', 'high', 'xhigh'];
+      const validEfforts = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
       if (validEfforts.includes(options.reasoningEffort)) {
         this.args.push(CLI.FLAGS.CONFIG, `model_reasoning_effort="${options.reasoningEffort}"`);
         Logger.debug(`Using reasoning effort: ${options.reasoningEffort}`);
       } else {
         Logger.warn(
-          `Invalid reasoning effort '${options.reasoningEffort}'. Valid values: low, medium, high, xhigh`
+          `Invalid reasoning effort '${options.reasoningEffort}'. Valid values: ${validEfforts.join(', ')}`
         );
       }
     }
@@ -477,6 +493,47 @@ export class CodexCommandBuilder {
           'Output last message requested but not supported (requires Codex CLI v0.95.0+). Ignoring.'
         );
       }
+    }
+  }
+
+  /**
+   * Convert an object into repeatable `-c key=value` arguments. Codex expects
+   * one override per flag; comma-joining multiple entries creates one invalid
+   * TOML value. Nested objects become dotted configuration paths.
+   */
+  private addConfigObject(config: Record<string, any>, prefix: string = ''): void {
+    for (const [key, value] of Object.entries(config)) {
+      if (value === undefined) continue;
+
+      const configKey = prefix ? `${prefix}.${key}` : key;
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        this.addConfigObject(value as Record<string, any>, configKey);
+        continue;
+      }
+
+      this.args.push(CLI.FLAGS.CONFIG, `${configKey}=${this.formatTomlValue(value)}`);
+    }
+  }
+
+  private formatTomlValue(value: unknown): string {
+    if (typeof value === 'string') return JSON.stringify(value);
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (value === null) return '""';
+    if (Array.isArray(value))
+      return `[${value.map(item => this.formatTomlValue(item)).join(', ')}]`;
+    return JSON.stringify(String(value));
+  }
+
+  /** Add flags that only exist on codex exec / codex exec resume. */
+  private addExecRuntimeArgs(options?: CodexCommandBuilderOptions): void {
+    if (options?.ephemeral) {
+      this.args.push(CLI.FLAGS.EPHEMERAL);
+    }
+    if (options?.ignoreUserConfig) {
+      this.args.push(CLI.FLAGS.IGNORE_USER_CONFIG);
+    }
+    if (options?.ignoreRules) {
+      this.args.push(CLI.FLAGS.IGNORE_RULES);
     }
   }
 

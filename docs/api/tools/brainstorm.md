@@ -42,9 +42,9 @@ The `brainstorm` tool leverages AI models to generate creative solutions using v
 #### model (optional)
 
 - **Type:** `string`
-- **Default:** `gpt-5.5` when available, with automatic fallback
-- **Options:** `"gpt-5.5"`, `"gpt-5.4"`, `"gpt-5.4-mini"`, `"gpt-5.3-codex"`, `"gpt-5.2"`
-- **Recommendation:** Use gpt-5.5 for complex creative work and gpt-5.4-mini for quick ideation
+- **Default:** omitted; Codex CLI config and account select the model
+- **Known options:** `"gpt-5.6"`, `"gpt-5.6-sol"`, `"gpt-5.6-terra"`, `"gpt-5.6-luna"`, `"gpt-5.5"`, `"gpt-5.4"`, `"gpt-5.4-mini"`
+- **Recommendation:** Use Sol for complex ideation, Terra for everyday work, and Luna for quick, structured exploration
 
 #### methodology (optional)
 
@@ -98,7 +98,7 @@ The `brainstorm` tool leverages AI models to generate creative solutions using v
 #### approvalPolicy (optional)
 
 - **Type:** `string`
-- **Options:** `"never"`, `"on-request"`, `"on-failure"`, `"untrusted"`
+- **Options:** `"never"`, `"on-request"`, `"untrusted"`
 - **Description:** When approval is required
 
 #### sandboxMode (optional)
@@ -111,7 +111,7 @@ The `brainstorm` tool leverages AI models to generate creative solutions using v
 
 - **Type:** `boolean`
 - **Default:** `false`
-- **Description:** Enable full automation
+- **Description:** Compatibility alias for workspace-write + approval `never`
 
 #### cd (optional)
 

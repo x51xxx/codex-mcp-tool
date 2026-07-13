@@ -71,7 +71,7 @@ Users can invoke the tool through multiple methods:
   "name": "ask-codex",
   "arguments": {
     "prompt": "review @src/**/*.ts",
-    "model": "gpt-5.1-codex-max"
+    "model": "gpt-5.6-sol"
   }
 }
 ```
@@ -88,7 +88,7 @@ The MCP server receives the standardized tool call:
     "name": "ask-codex",
     "arguments": {
       "prompt": "analyze @src/utils",
-      "model": "gpt-5.1-codex-max",
+      "model": "gpt-5.6-sol",
       "fullAuto": true
     }
   }
@@ -101,8 +101,9 @@ The server builds the appropriate Codex CLI command:
 
 ```bash
 codex exec \
-  --model gpt-5.1-codex-max \
-  --full-auto \
+  --model gpt-5.6-sol \
+  --sandbox workspace-write \
+  --ask-for-approval never \
   "analyze @src/utils"
 ```
 
@@ -225,14 +226,14 @@ DEBUG=codex-mcp:*
 
 The server supports all Codex CLI flags:
 
-| Flag                                         | MCP Parameter           | Description              |
-| -------------------------------------------- | ----------------------- | ------------------------ |
-| `--model`                                    | `model`                 | AI model selection       |
-| `--full-auto`                                | `fullAuto` or `sandbox` | Automatic execution mode |
-| `--ask-for-approval`                         | `approvalPolicy`        | Approval requirements    |
-| `--sandbox`                                  | `sandboxMode`           | Filesystem access level  |
-| `--cd`                                       | `cd`                    | Working directory        |
-| `--dangerously-bypass-approvals-and-sandbox` | `yolo`                  | Bypass all safety checks |
+| Flag                                         | MCP Parameter           | Description                             |
+| -------------------------------------------- | ----------------------- | --------------------------------------- |
+| `--model`                                    | `model`                 | AI model selection                      |
+| `--sandbox workspace-write -a never`         | `fullAuto` or `sandbox` | Sandboxed compatibility automation mode |
+| `--ask-for-approval`                         | `approvalPolicy`        | Approval requirements                   |
+| `--sandbox`                                  | `sandboxMode`           | Filesystem access level                 |
+| `--cd`                                       | `cd`                    | Working directory                       |
+| `--dangerously-bypass-approvals-and-sandbox` | `yolo`                  | Bypass all safety checks                |
 
 ## Performance Optimization
 
@@ -285,7 +286,7 @@ All inputs are validated using Zod schemas:
 ```javascript
 const schema = z.object({
   prompt: z.string().min(1),
-  model: z.enum(['gpt-5.1-codex-max', 'gpt-5.1-codex', 'gpt-5.1-codex-mini', 'gpt-5.1']).optional(),
+  model: z.string().optional(), // Known models are suggested; newer/local names pass through
   sandbox: z.boolean().optional(),
 });
 ```
@@ -367,7 +368,7 @@ const client = new MCPClient({
 
 await client.callTool('ask-codex', {
   prompt: 'analyze @src',
-  model: 'gpt-5.1-codex-max',
+  model: 'gpt-5.6-sol',
 });
 ```
 

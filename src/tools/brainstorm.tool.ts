@@ -112,14 +112,17 @@ const brainstormArgsSchema = z.object({
       `Optional model override. Known: ${Object.values(MODELS).join(', ')}. If omitted, uses your Codex CLI default (~/.codex/config.toml).`
     ),
   approvalPolicy: z
-    .enum(['never', 'on-request', 'on-failure', 'untrusted'])
+    .enum(['never', 'on-request', 'untrusted'])
     .optional()
-    .describe('Approval: never, on-request, on-failure, untrusted'),
+    .describe('Approval: never, on-request, untrusted'),
   sandboxMode: z
     .enum(['read-only', 'workspace-write', 'danger-full-access'])
     .optional()
     .describe('Access: read-only, workspace-write, danger-full-access'),
-  fullAuto: z.boolean().optional().describe('Full automation mode'),
+  fullAuto: z
+    .boolean()
+    .optional()
+    .describe('Compatibility alias for workspace-write with approval=never'),
   yolo: z.boolean().optional().describe('⚠️ Bypass all safety (dangerous)'),
   cd: z.string().optional().describe('Working directory'),
   methodology: z
@@ -141,10 +144,7 @@ const brainstormArgsSchema = z.object({
     .default(12)
     .describe('Number of ideas (default: 12, range: 5-30)'),
   includeAnalysis: z.boolean().default(true).describe('Include feasibility/impact analysis'),
-  search: z
-    .boolean()
-    .optional()
-    .describe('Enable web search for research (activates web_search_request feature)'),
+  search: z.boolean().optional().describe('Enable live web search using the native --search flag'),
   oss: z.boolean().optional().describe('Use local Ollama server'),
   localProvider: z
     .enum(['lmstudio', 'ollama'])
@@ -155,7 +155,7 @@ const brainstormArgsSchema = z.object({
   enableFeatures: z.array(z.string()).optional().describe('Enable feature flags'),
   disableFeatures: z.array(z.string()).optional().describe('Disable feature flags'),
   reasoningEffort: z
-    .enum(['low', 'medium', 'high', 'xhigh'])
+    .enum(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'])
     .default('high')
     .describe(
       'Reasoning depth. Default: high (creative ideation benefits from depth). Override with "xhigh" for very complex domains, "medium" for quick exploration.'
@@ -241,7 +241,14 @@ export const brainstormTool: UnifiedTool = {
         localProvider: localProvider as 'lmstudio' | 'ollama' | undefined,
         enableFeatures: enableFeatures as string[],
         disableFeatures: disableFeatures as string[],
-        reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high' | 'xhigh' | undefined,
+        reasoningEffort: reasoningEffort as
+          | 'low'
+          | 'medium'
+          | 'high'
+          | 'xhigh'
+          | 'max'
+          | 'ultra'
+          | undefined,
         personality: personality as 'pragmatic' | 'friendly' | undefined,
       },
       onProgress
