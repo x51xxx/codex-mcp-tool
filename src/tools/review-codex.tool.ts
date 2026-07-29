@@ -145,10 +145,12 @@ export const reviewCodexTool: UnifiedTool = {
         onProgress(`Executing: codex ${cmdArgs.join(' ')}`);
       }
 
-      // Execute codex review
+      // Execute codex review. Reviews commonly run at high reasoning effort
+      // and spawn their own verification commands, so they need more headroom
+      // than a plain prompt — 3 minutes was cutting real reviews off mid-run.
       const result = await executeCommandDetailed(CLI.COMMANDS.CODEX, cmdArgs, {
         onProgress,
-        timeoutMs: (timeout as number) || 180000, // 3 minutes default
+        timeoutMs: (timeout as number) || 600000, // 10 minutes default
         cwd: resolvedDir || undefined,
       });
 
@@ -157,6 +159,16 @@ export const reviewCodexTool: UnifiedTool = {
 
       if (!result.ok && !response) {
         throw new Error(result.stderr || 'Codex review command failed');
+      }
+
+      // A killed-by-timeout run may still have a large partial transcript —
+      // that is not a completed review, so it must not be presented as one.
+      if (result.timedOut) {
+        return (
+          `⏱️ **Review Timed Out** after ${(timeout as number) || 600000}ms before Codex finished. ` +
+          `Retry with a larger \`timeout\`, or a lower \`reasoningEffort\`.\n\n` +
+          `<details><summary>Partial transcript</summary>\n\n${response}\n\n</details>`
+        );
       }
 
       // A failed run that produced no stdout is an error, not a review — do not

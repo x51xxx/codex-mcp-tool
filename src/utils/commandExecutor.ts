@@ -181,10 +181,16 @@ async function executeOnce(
     let totalStdoutBytes = 0;
     let isResolved = false;
     let outputExceeded = false;
+    // Tracks whether *we* killed the child for running too long. A child that
+    // catches SIGTERM and exits(0) on its own (Codex CLI does this) reports
+    // `signal: null, code: 0` to the 'close' handler — indistinguishable from
+    // a clean finish unless we remember the kill ourselves.
+    let killedByTimeout = false;
 
     // Set up timeout with SIGKILL fallback
     const timeoutId = setTimeout(() => {
       if (!isResolved) {
+        killedByTimeout = true;
         childProcess.kill('SIGTERM');
         Logger.warn(`Process timeout after ${timeoutMs}ms, sending SIGTERM`);
 
@@ -263,18 +269,18 @@ async function executeOnce(
 
         const stdout = Buffer.concat(stdoutChunks).toString('utf8');
         const stderr = Buffer.concat(stderrChunks).toString('utf8');
-        const timedOut = signal === 'SIGTERM' || signal === 'SIGKILL';
+        const timedOut = killedByTimeout || signal === 'SIGTERM' || signal === 'SIGKILL';
 
         Logger.commandComplete(startTime, code, stdout.length);
 
         resolve({
-          ok: code === 0 && !outputExceeded,
+          ok: code === 0 && !outputExceeded && !timedOut,
           code,
           signal: signal || undefined,
           stdout: stdout.trim(),
           stderr: stderr.trim(),
           timedOut,
-          partialStdout: outputExceeded ? stdout : undefined,
+          partialStdout: timedOut || outputExceeded ? stdout : undefined,
         });
       }
     });
