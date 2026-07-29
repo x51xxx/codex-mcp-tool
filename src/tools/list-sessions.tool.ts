@@ -67,6 +67,9 @@ export const listSessionsTool: UnifiedTool = {
       action: { type: 'string' },
       sessions: { type: 'array' },
       stats: { type: 'object' },
+      success: { type: 'boolean' },
+      sessionId: { type: 'string' },
+      error: { type: 'string' },
     },
     required: ['action'],
   },
@@ -80,7 +83,12 @@ export const listSessionsTool: UnifiedTool = {
     switch (action) {
       case 'delete':
         if (!sessionId) {
-          return '❌ **Error**: Session ID required for delete action.\n\nUsage: `list-sessions action:delete sessionId:<session-id>`';
+          const error = 'Session ID required for delete action.';
+          // Validation failures must still match the declared outputSchema.
+          return {
+            text: `❌ **Error**: ${error}\n\nUsage: \`list-sessions action:delete sessionId:<session-id>\``,
+            structuredContent: { action: 'delete', success: false, error },
+          } as StructuredToolResult;
         }
         const deleted = deleteSession(sessionId as string);
         if (deleted) {

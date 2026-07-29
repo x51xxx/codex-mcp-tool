@@ -1,17 +1,8 @@
-import { CLI } from '../constants.js';
+import { CLI, APPROVAL_POLICIES } from '../constants.js';
 import { Logger } from './logger.js';
 import { resolveWorkingDirectory } from './workingDirResolver.js';
-import { isValidModel } from './modelDetection.js';
-import {
-  supportsNativeSearch,
-  supportsAddDir,
-  supportsToolTokenLimit,
-  supportsResume,
-  supportsSkipGitCheck,
-  supportsPersonality,
-  supportsOutputSchema,
-  supportsOutputLastMessage,
-} from './versionDetection.js';
+import { isValidModel, assertReasoningEffortSupported } from './modelDetection.js';
+import { checkMinimumCodexVersion } from './versionDetection.js';
 import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -68,6 +59,8 @@ export interface BuildResult {
   finalPrompt: string;
   useResume: boolean; // Whether resume command is being used
   workingDir?: string; // Resolved working directory for spawn cwd
+  /** Prompt text to write to the child's stdin when `-` is used as the prompt. */
+  stdinInput?: string;
 }
 
 /**
@@ -94,6 +87,7 @@ export class CodexCommandBuilder {
 
     // 1. Validation
     this.validateOptions(options);
+    await this.assertSupportedCli();
 
     // 2. Check if we should use resume mode
     await this.checkResumeMode(options);
@@ -112,7 +106,7 @@ export class CodexCommandBuilder {
     //    Codex CLI only applies --oss/--local-provider as exec subcommand flags.
 
     // 7. Search + Feature flags (shared 69-line logic)
-    await this.addSearchAndFeatures(options);
+    this.addSearchAndFeatures(options);
 
     // 8. Disable features
     if (options?.disableFeatures && Array.isArray(options.disableFeatures)) {
@@ -122,13 +116,13 @@ export class CodexCommandBuilder {
     }
 
     // 9. Advanced features (addDirs + tokenLimit)
-    await this.addAdvancedFeatures(options);
+    this.addAdvancedFeatures(options);
 
     // 10. Reasoning effort level
     this.addReasoningEffort(options);
 
     // 10b. Personality
-    await this.addPersonality(options);
+    this.addPersonality(options);
 
     // 11. Configuration
     if (options?.config) {
@@ -200,9 +194,9 @@ export class CodexCommandBuilder {
     }
 
     // 14c. Exec-subcommand flags — must come AFTER exec (Codex CLI parses these as exec options)
-    await this.addSkipGitCheck(options);
-    await this.addOutputSchema(options);
-    await this.addOutputLastMessage(options);
+    this.addSkipGitCheck(options);
+    this.addOutputSchema(options);
+    this.addOutputLastMessage(options);
     this.addExecRuntimeArgs(options);
 
     // 15. Handle prompt (concise mode, stdin for large prompts)
@@ -210,19 +204,26 @@ export class CodexCommandBuilder {
   }
 
   /**
+   * Fail fast on a Codex CLI older than the supported minimum.
+   *
+   * Previously each flag was gated individually and silently dropped on old
+   * CLIs, which produced a run that looked successful but ignored half the
+   * request. One explicit error is easier to act on.
+   */
+  private async assertSupportedCli(): Promise<void> {
+    const check = await checkMinimumCodexVersion();
+    if (!check.ok && check.message) {
+      throw new Error(check.message);
+    }
+  }
+
+  /**
    * Check if resume mode should be used
    */
   private async checkResumeMode(options?: CodexCommandBuilderOptions): Promise<void> {
     if (options?.codexConversationId) {
-      const resumeSupported = await supportsResume();
-      if (resumeSupported) {
-        this.useResumeMode = true;
-        Logger.debug('Resume mode enabled (Codex CLI v0.36.0+)');
-      } else {
-        Logger.warn(
-          'Resume mode requested but not supported (requires Codex CLI v0.36.0+). Falling back to exec mode.'
-        );
-      }
+      this.useResumeMode = true;
+      Logger.debug(`Resume mode enabled for conversation ${options.codexConversationId}`);
     }
   }
 
@@ -242,6 +243,24 @@ export class CodexCommandBuilder {
     if (options?.fullAuto && (options?.approvalPolicy || options?.approval)) {
       throw new Error('Cannot combine fullAuto with an explicit approval policy');
     }
+
+    // `approval` reaches the builder as a free-form string (ToolArguments types
+    // it as `string`), so an unknown value would surface as a raw clap error
+    // from the CLI. The removed `on-failure` policy is the likely offender.
+    const validPolicies = Object.values(APPROVAL_POLICIES) as string[];
+    for (const [name, value] of [
+      ['approvalPolicy', options?.approvalPolicy],
+      ['approval', options?.approval],
+    ] as const) {
+      if (value && !validPolicies.includes(value)) {
+        throw new Error(
+          `Invalid ${name} '${value}'. Valid values: ${validPolicies.join(', ')}. ` +
+            `('on-failure' was removed from Codex CLI.)`
+        );
+      }
+    }
+
+    assertReasoningEffortSupported(options?.model, options?.reasoningEffort);
   }
 
   /**
@@ -332,64 +351,35 @@ export class CodexCommandBuilder {
   /**
    * Add search and feature flags (shared 69-line logic from both functions)
    */
-  private async addSearchAndFeatures(options?: CodexCommandBuilderOptions): Promise<void> {
-    // Prefer native web search. Only old CLIs need the legacy feature flag.
+  private addSearchAndFeatures(options?: CodexCommandBuilderOptions): void {
+    // Native --search is the only supported path. The former fallback to the
+    // `web_search_request` feature flag is gone: that feature is reported as
+    // `deprecated` by `codex features list`, and the branch was unreachable on
+    // any CLI at or above the supported minimum.
     if (options?.search) {
-      // Check if native --search flag is supported (Codex CLI v0.52.0+)
-      const hasNativeSearch = await supportsNativeSearch();
+      this.args.push(CLI.FLAGS.SEARCH);
+      Logger.debug('Enabling native web search via --search');
+    }
 
-      if (hasNativeSearch) {
-        this.args.push(CLI.FLAGS.SEARCH);
-        Logger.debug('Using native --search flag (Codex CLI v0.52.0+)');
-      } else {
-        Logger.debug(
-          'Native --search flag not supported, falling back to web_search_request feature flag'
-        );
-        this.args.push(CLI.FLAGS.ENABLE, 'web_search_request');
-      }
-
-      for (const feature of options?.enableFeatures || []) {
-        this.args.push(CLI.FLAGS.ENABLE, feature);
-      }
-    } else {
-      // Normal feature flag handling when search is not enabled
-      const enableFeatures = [...(options?.enableFeatures || [])];
-      for (const feature of enableFeatures) {
-        this.args.push(CLI.FLAGS.ENABLE, feature);
-      }
+    for (const feature of options?.enableFeatures || []) {
+      this.args.push(CLI.FLAGS.ENABLE, feature);
     }
   }
 
   /**
    * Add advanced features (addDirs, toolOutputTokenLimit)
    */
-  private async addAdvancedFeatures(options?: CodexCommandBuilderOptions): Promise<void> {
-    // Additional writable directories (v1.3.0+, requires Codex CLI v0.59.0+)
+  private addAdvancedFeatures(options?: CodexCommandBuilderOptions): void {
+    // Additional writable directories
     if (options?.addDirs && Array.isArray(options.addDirs)) {
-      const hasAddDir = await supportsAddDir();
-      if (hasAddDir) {
-        for (const dir of options.addDirs) {
-          this.args.push(CLI.FLAGS.ADD_DIR, dir);
-        }
-        Logger.debug('Using --add-dir flag (Codex CLI v0.59.0+)');
-      } else {
-        Logger.warn(
-          'Additional directories specified but --add-dir flag not supported (requires Codex CLI v0.59.0+). Ignoring addDirs parameter.'
-        );
+      for (const dir of options.addDirs) {
+        this.args.push(CLI.FLAGS.ADD_DIR, dir);
       }
     }
 
-    // Tool output token limit (v1.3.0+, requires Codex CLI v0.59.0+)
+    // Tool output token limit
     if (options?.toolOutputTokenLimit) {
-      const hasTokenLimit = await supportsToolTokenLimit();
-      if (hasTokenLimit) {
-        this.args.push(CLI.FLAGS.CONFIG, `tool_output_token_limit=${options.toolOutputTokenLimit}`);
-        Logger.debug('Using tool_output_token_limit config (Codex CLI v0.59.0+)');
-      } else {
-        Logger.warn(
-          'Tool output token limit specified but not supported (requires Codex CLI v0.59.0+). Ignoring toolOutputTokenLimit parameter.'
-        );
-      }
+      this.args.push(CLI.FLAGS.CONFIG, `tool_output_token_limit=${options.toolOutputTokenLimit}`);
     }
   }
 
@@ -412,53 +402,30 @@ export class CodexCommandBuilder {
   }
 
   /**
-   * Add --skip-git-repo-check flag (v0.75.0+)
+   * Add --skip-git-repo-check flag
    */
-  private async addSkipGitCheck(options?: CodexCommandBuilderOptions): Promise<void> {
+  private addSkipGitCheck(options?: CodexCommandBuilderOptions): void {
     if (options?.skipGitRepoCheck) {
-      const hasFlag = await supportsSkipGitCheck();
-      if (hasFlag) {
-        this.args.push(CLI.FLAGS.SKIP_GIT_REPO_CHECK);
-        Logger.debug('Using --skip-git-repo-check flag (Codex CLI v0.75.0+)');
-      } else {
-        Logger.warn(
-          'Skip git repo check requested but not supported (requires Codex CLI v0.75.0+). Ignoring.'
-        );
-      }
+      this.args.push(CLI.FLAGS.SKIP_GIT_REPO_CHECK);
     }
   }
 
   /**
-   * Add personality configuration (v0.94.0+)
+   * Add personality configuration
    */
-  private async addPersonality(options?: CodexCommandBuilderOptions): Promise<void> {
+  private addPersonality(options?: CodexCommandBuilderOptions): void {
     if (options?.personality) {
-      const hasFlag = await supportsPersonality();
-      if (hasFlag) {
-        this.args.push(CLI.FLAGS.CONFIG, `personality="${options.personality}"`);
-        Logger.debug(`Using personality: ${options.personality}`);
-      } else {
-        Logger.warn(
-          `Personality config requested but not supported (requires Codex CLI v0.94.0+). Ignoring.`
-        );
-      }
+      this.args.push(CLI.FLAGS.CONFIG, `personality="${options.personality}"`);
+      Logger.debug(`Using personality: ${options.personality}`);
     }
   }
 
   /**
-   * Add --output-schema flag (v0.95.0+)
+   * Add --output-schema flag
    * Accepts a file path (string) or inline schema (object → written to temp file)
    */
-  private async addOutputSchema(options?: CodexCommandBuilderOptions): Promise<void> {
+  private addOutputSchema(options?: CodexCommandBuilderOptions): void {
     if (!options?.outputSchema) return;
-
-    const hasFlag = await supportsOutputSchema();
-    if (!hasFlag) {
-      Logger.warn(
-        'Output schema requested but not supported (requires Codex CLI v0.95.0+). Ignoring.'
-      );
-      return;
-    }
 
     if (typeof options.outputSchema === 'string') {
       // String → pass as file path directly
@@ -480,19 +447,12 @@ export class CodexCommandBuilder {
   }
 
   /**
-   * Add -o / --output-last-message flag (v0.95.0+)
+   * Add -o / --output-last-message flag
    */
-  private async addOutputLastMessage(options?: CodexCommandBuilderOptions): Promise<void> {
+  private addOutputLastMessage(options?: CodexCommandBuilderOptions): void {
     if (options?.outputLastMessage) {
-      const hasFlag = await supportsOutputLastMessage();
-      if (hasFlag) {
-        this.args.push(CLI.FLAGS.OUTPUT_LAST_MESSAGE, options.outputLastMessage);
-        Logger.debug(`Using output-last-message: ${options.outputLastMessage}`);
-      } else {
-        Logger.warn(
-          'Output last message requested but not supported (requires Codex CLI v0.95.0+). Ignoring.'
-        );
-      }
+      this.args.push(CLI.FLAGS.OUTPUT_LAST_MESSAGE, options.outputLastMessage);
+      Logger.debug(`Using output-last-message: ${options.outputLastMessage}`);
     }
   }
 
@@ -559,36 +519,28 @@ export class CodexCommandBuilder {
       Logger.debug('Change mode enabled: prepended format instructions to prompt');
     }
 
-    // Add conciseness instruction if requested
+    // Add conciseness instruction if requested. Must build on finalPrompt, not
+    // the original prompt — interpolating `prompt` here would discard the
+    // changeMode format instructions prepended just above, and changeMode would
+    // silently parse zero edits.
     if (options?.concisePrompt) {
-      finalPrompt = `Please provide a focused, concise response without unnecessary elaboration. ${prompt}`;
+      finalPrompt = `Please provide a focused, concise response without unnecessary elaboration. ${finalPrompt}`;
     }
 
-    // Check if prompt is too long for command line (OS dependent, ~100KB is safe)
+    // Large prompts are delivered over stdin rather than argv. Codex CLI reads
+    // instructions from stdin when the prompt argument is `-`; that avoids both
+    // the OS argv length limit (E2BIG) and any dependence on the agent choosing
+    // to read a file for us.
     const MAX_COMMAND_LINE_LENGTH = 100000;
     const useStdin =
       options?.useStdinForLongPrompts !== false && finalPrompt.length > MAX_COMMAND_LINE_LENGTH;
 
+    let stdinInput: string | undefined;
+
     if (useStdin) {
-      // Create temporary file for large prompts
-      const tempFileName = `codex-prompt-${randomBytes(8).toString('hex')}.txt`;
-      const tempFilePath = join(tmpdir(), tempFileName);
-
-      try {
-        writeFileSync(tempFilePath, finalPrompt, 'utf8');
-        Logger.debug(
-          `Prompt too long (${finalPrompt.length} chars), using temp file: ${tempFilePath}`
-        );
-
-        // Use stdin redirection via special prompt format
-        this.args.push(`@${tempFilePath}`);
-        this.tempFiles.push(tempFilePath);
-      } catch (error) {
-        Logger.warn(
-          `Failed to create temp file for large prompt: ${error}. Proceeding with direct prompt.`
-        );
-        this.args.push(finalPrompt);
-      }
+      stdinInput = finalPrompt;
+      this.args.push('-');
+      Logger.debug(`Prompt is ${finalPrompt.length} chars, sending it over stdin via '-'`);
     } else {
       // Normal prompt handling
       this.args.push(finalPrompt);
@@ -600,6 +552,7 @@ export class CodexCommandBuilder {
       finalPrompt,
       useResume: this.useResumeMode,
       workingDir: this.resolvedWorkingDir,
+      stdinInput,
     };
   }
 

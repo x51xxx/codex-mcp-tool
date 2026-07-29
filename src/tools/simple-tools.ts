@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { UnifiedTool, StructuredToolResult } from './registry.js';
 import { executeCommand } from '../utils/commandExecutor.js';
+import { CLI } from '../constants.js';
 import { readFileSync } from 'fs';
 
 const packageMetadata = JSON.parse(
@@ -47,7 +48,7 @@ export const helpTool: UnifiedTool = {
   },
   category: 'simple',
   execute: async (args, onProgress) => {
-    return executeCommand('codex', ['--help'], onProgress);
+    return executeCommand(CLI.COMMANDS.CODEX, [CLI.FLAGS.HELP], onProgress);
   },
 };
 

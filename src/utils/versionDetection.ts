@@ -2,8 +2,17 @@ import { Logger } from './logger.js';
 import { executeCommand } from './commandExecutor.js';
 
 /**
- * Codex CLI version detection and feature compatibility checks
- * Ensures correct CLI flags are used based on installed version
+ * Codex CLI version detection.
+ *
+ * This server used to gate individual flags behind per-feature version
+ * thresholds. Every threshold sat below `0.98.0` while shipped Codex CLI is
+ * well past `0.145.0`, so all of them were permanently true: dead branches that
+ * still cost an async check (and potentially a `codex --version` spawn) on
+ * every command build.
+ *
+ * They are replaced by a single minimum supported version. Below it the server
+ * fails fast with an actionable message instead of silently dropping flags,
+ * which previously turned an unsupported CLI into a confusing partial run.
  */
 
 export interface CodexVersion {
@@ -15,25 +24,15 @@ export interface CodexVersion {
 }
 
 /**
- * Feature availability by version
+ * Minimum Codex CLI version this server supports.
+ *
+ * Derived from the highest threshold in the previous per-feature table
+ * (`--output-schema` / `-o`, recorded as `0.95.0`); those recorded thresholds
+ * are inherited, not independently verified. What *is* verified is that every
+ * flag this server emits works on `0.145.0`.
  */
-export const FEATURE_VERSIONS = {
-  // Existing
-  RESUME: { major: 0, minor: 36, patch: 0 }, // codex resume command (v1.4.0+)
-  NATIVE_SEARCH: { major: 0, minor: 52, patch: 0 }, // --search flag
-  GPT5_1_MODELS: { major: 0, minor: 56, patch: 0 }, // GPT-5.1 model family
-  TOOL_TOKEN_LIMIT: { major: 0, minor: 59, patch: 0 }, // tool_output_token_limit
-  ADD_DIR: { major: 0, minor: 59, patch: 0 }, // --add-dir flag
-  WINDOWS_AGENT: { major: 0, minor: 59, patch: 0 }, // Windows agent mode
-  // New (v2.0.0)
-  SKIP_GIT_CHECK: { major: 0, minor: 75, patch: 0 }, // --skip-git-repo-check
-  SKILLS: { major: 0, minor: 90, patch: 0 }, // .agents/skills/ support
-  PERSONALITY: { major: 0, minor: 94, patch: 0 }, // personality config
-  OUTPUT_SCHEMA: { major: 0, minor: 95, patch: 0 }, // --output-schema
-  OUTPUT_LAST_MSG: { major: 0, minor: 95, patch: 0 }, // -o / --output-last-message
-  MEMORY: { major: 0, minor: 97, patch: 0 }, // automatic memory
-  STEER_MODE: { major: 0, minor: 98, patch: 0 }, // interactive steer mode
-} as const;
+export const MINIMUM_CODEX_VERSION = { major: 0, minor: 95, patch: 0 } as const;
+export const MINIMUM_CODEX_VERSION_STRING = '0.95.0';
 
 // Version cache for performance optimization
 let cachedVersion: CodexVersion | null = null;
@@ -42,7 +41,7 @@ const VERSION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Parse version string into structured format
- * @param versionString Raw version string (e.g., "0.59.0", "v0.52.1")
+ * @param versionString Raw version string (e.g., "0.145.0", "v0.145.0")
  * @returns CodexVersion object
  */
 export function parseVersion(versionString: string): CodexVersion {
@@ -117,9 +116,13 @@ export async function getCodexVersion(bypassCache: boolean = false): Promise<Cod
   try {
     const versionOutput = await executeCommand('codex', ['--version'], undefined, 5000);
 
-    // Parse version from output (format: "codex 0.59.0" or just "0.59.0")
+    // Codex CLI prints "codex-cli 0.145.0"; older builds printed "codex 0.59.0".
+    // The optional `-cli` suffix matters — without it only the bare-number
+    // fallback matched, which would also happily match a version-like string
+    // anywhere in the output.
     const versionMatch =
-      versionOutput.match(/codex\s+v?(\d+\.\d+\.\d+)/) || versionOutput.match(/v?(\d+\.\d+\.\d+)/);
+      versionOutput.match(/codex(?:-cli)?\s+v?(\d+\.\d+\.\d+)/i) ||
+      versionOutput.match(/v?(\d+\.\d+\.\d+)/);
 
     if (!versionMatch) {
       Logger.warn('Could not parse Codex version from output:', versionOutput);
@@ -152,90 +155,39 @@ export async function getCodexVersion(bypassCache: boolean = false): Promise<Cod
   }
 }
 
+export interface MinimumVersionCheck {
+  ok: boolean;
+  version: CodexVersion;
+  /** Populated only when the check fails. */
+  message?: string;
+}
+
 /**
- * Check if specific feature is available in installed version
- * @param featureName Name of feature from FEATURE_VERSIONS
- * @returns Promise<boolean> True if feature is available
+ * Check the installed CLI against {@link MINIMUM_CODEX_VERSION}.
+ *
+ * An unparseable version is treated as acceptable: the server should not refuse
+ * to run because it could not read a version string. A genuinely broken
+ * installation surfaces through the binary resolution and spawn paths instead.
  */
-export async function isFeatureAvailable(
-  featureName: keyof typeof FEATURE_VERSIONS
-): Promise<boolean> {
+export async function checkMinimumCodexVersion(): Promise<MinimumVersionCheck> {
   const version = await getCodexVersion();
-  const minVersion = FEATURE_VERSIONS[featureName];
 
-  return meetsMinVersion(version, minVersion);
-}
+  if (!version.isValid) {
+    Logger.debug('Codex CLI version could not be determined; skipping minimum version check');
+    return { ok: true, version };
+  }
 
-/**
- * Check if native --search flag is available
- * @returns Promise<boolean> True if --search flag is supported
- */
-export async function supportsNativeSearch(): Promise<boolean> {
-  return await isFeatureAvailable('NATIVE_SEARCH');
-}
+  if (meetsMinVersion(version, MINIMUM_CODEX_VERSION)) {
+    return { ok: true, version };
+  }
 
-/**
- * Check if --add-dir flag is available
- * @returns Promise<boolean> True if --add-dir flag is supported
- */
-export async function supportsAddDir(): Promise<boolean> {
-  return await isFeatureAvailable('ADD_DIR');
-}
-
-/**
- * Check if tool_output_token_limit config is available
- * @returns Promise<boolean> True if token limit config is supported
- */
-export async function supportsToolTokenLimit(): Promise<boolean> {
-  return await isFeatureAvailable('TOOL_TOKEN_LIMIT');
-}
-
-/**
- * Check if GPT-5.1 models are available
- * @returns Promise<boolean> True if GPT-5.1 models are supported
- */
-export async function supportsGPT51Models(): Promise<boolean> {
-  return await isFeatureAvailable('GPT5_1_MODELS');
-}
-
-/**
- * Check if native resume command is available
- * @returns Promise<boolean> True if 'codex resume' is supported
- */
-export async function supportsResume(): Promise<boolean> {
-  return await isFeatureAvailable('RESUME');
-}
-
-/**
- * Check if --skip-git-repo-check flag is available
- * @returns Promise<boolean> True if --skip-git-repo-check flag is supported
- */
-export async function supportsSkipGitCheck(): Promise<boolean> {
-  return await isFeatureAvailable('SKIP_GIT_CHECK');
-}
-
-/**
- * Check if personality config is available
- * @returns Promise<boolean> True if personality config is supported
- */
-export async function supportsPersonality(): Promise<boolean> {
-  return await isFeatureAvailable('PERSONALITY');
-}
-
-/**
- * Check if --output-schema flag is available
- * @returns Promise<boolean> True if --output-schema flag is supported
- */
-export async function supportsOutputSchema(): Promise<boolean> {
-  return await isFeatureAvailable('OUTPUT_SCHEMA');
-}
-
-/**
- * Check if -o / --output-last-message flag is available
- * @returns Promise<boolean> True if output-last-message flag is supported
- */
-export async function supportsOutputLastMessage(): Promise<boolean> {
-  return await isFeatureAvailable('OUTPUT_LAST_MSG');
+  return {
+    ok: false,
+    version,
+    message:
+      `Codex CLI ${version.major}.${version.minor}.${version.patch} is older than the minimum ` +
+      `supported version ${MINIMUM_CODEX_VERSION_STRING}. Upgrade with: npm install -g @openai/codex@latest`,
+  };
 }
 
 /**
@@ -244,33 +196,4 @@ export async function supportsOutputLastMessage(): Promise<boolean> {
 export function clearVersionCache(): void {
   cachedVersion = null;
   cacheTimestamp = 0;
-}
-
-/**
- * Get all supported features for current version
- * @returns Promise<Record<string, boolean>> Map of feature names to availability
- */
-export async function getSupportedFeatures(): Promise<Record<string, boolean>> {
-  const version = await getCodexVersion();
-
-  const features: Record<string, boolean> = {};
-  for (const [featureName, minVersion] of Object.entries(FEATURE_VERSIONS)) {
-    features[featureName] = meetsMinVersion(version, minVersion);
-  }
-
-  return features;
-}
-
-/**
- * Log version and feature support information
- */
-export async function logVersionInfo(): Promise<void> {
-  const version = await getCodexVersion();
-  const features = await getSupportedFeatures();
-
-  Logger.log(`Codex CLI Version: ${version.raw}`);
-  Logger.log('Supported Features:');
-  for (const [feature, supported] of Object.entries(features)) {
-    Logger.log(`  ${feature}: ${supported ? '✓' : '✗'}`);
-  }
 }

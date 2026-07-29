@@ -1,5 +1,13 @@
 import spawn from 'cross-spawn';
+import { statSync } from 'fs';
 import { Logger } from './logger.js';
+import {
+  resolveBinary,
+  describeUnresolvedBinary,
+  childEnvWithAugmentedPath,
+  CODEX_PATH_ENV,
+  BinaryResolution,
+} from './binaryResolver.js';
 
 export interface CommandResult {
   ok: boolean;
@@ -23,6 +31,33 @@ export interface ExecuteOptions {
   maxOutputBytes?: number;
   retry?: RetryOptions;
   cwd?: string;
+  /**
+   * Written to the child's stdin, which is then closed. When omitted stdin is
+   * `'ignore'`, so the child sees an immediate EOF and can never read this
+   * process's stdin (the MCP stdio transport).
+   */
+  stdinInput?: string;
+}
+
+/**
+ * A nonexistent `cwd` makes spawn fail with an ENOENT whose `path` and
+ * `syscall` name the *command*, not the directory — indistinguishable from a
+ * missing binary. Checking the directory up front is the only way to report
+ * the real cause.
+ */
+function validateCwd(cwd: string): string | undefined {
+  try {
+    if (!statSync(cwd).isDirectory()) {
+      return `Working directory is not a directory: ${cwd}`;
+    }
+  } catch {
+    return (
+      `Working directory does not exist: ${cwd}\n` +
+      `Check the 'workingDir' argument and the CODEX_MCP_CWD environment variable ` +
+      `in your MCP client configuration.`
+    );
+  }
+  return undefined;
 }
 
 /**
@@ -39,18 +74,40 @@ export async function executeCommandDetailed(
     maxOutputBytes = 50 * 1024 * 1024, // 50MB default
     retry,
     cwd,
+    stdinInput,
   } = options;
+
+  // Pre-flight checks. Both failures below would otherwise surface as an
+  // identical, misleading "command not found" ENOENT — and neither is fixed by
+  // retrying, so they short-circuit the retry loop.
+  if (cwd) {
+    const cwdError = validateCwd(cwd);
+    if (cwdError) {
+      Logger.error(cwdError);
+      return { ok: false, code: null, stdout: '', stderr: cwdError, timedOut: false };
+    }
+  }
+
+  // The override only applies to the Codex CLI itself; it must not redirect
+  // some other command to the codex binary.
+  const resolution = resolveBinary(command, command === 'codex' ? CODEX_PATH_ENV : undefined);
+  if (!resolution.resolved) {
+    const message = describeUnresolvedBinary(command, resolution, CODEX_PATH_ENV);
+    Logger.error(message);
+    return { ok: false, code: null, stdout: '', stderr: message, timedOut: false };
+  }
 
   let attempt = 0;
   const maxAttempts = retry?.attempts || 1;
 
   while (attempt < maxAttempts) {
     attempt++;
-    const result = await executeOnce(command, args, {
+    const result = await executeOnce(resolution, args, {
       onProgress,
       timeoutMs,
       maxOutputBytes,
       cwd,
+      stdinInput,
     });
 
     if (result.ok) {
@@ -78,20 +135,46 @@ export async function executeCommandDetailed(
 }
 
 async function executeOnce(
-  command: string,
+  resolution: BinaryResolution,
   args: string[],
-  { onProgress, timeoutMs, maxOutputBytes, cwd }: Omit<ExecuteOptions, 'retry'>
+  { onProgress, timeoutMs, maxOutputBytes, cwd, stdinInput }: Omit<ExecuteOptions, 'retry'>
 ): Promise<CommandResult> {
   return new Promise(resolve => {
     const startTime = Date.now();
+    const command = resolution.command;
     Logger.commandExecution(command, args, startTime);
 
     const childProcess = spawn(command, args, {
-      env: process.env,
+      // Resolving the executable is not enough: `codex` is a JS file with a
+      // `#!/usr/bin/env node` shebang, so the child re-runs a PATH lookup for
+      // `node`. Under a GUI client's minimal PATH that fails with
+      // `env: node: No such file or directory` despite a correct codex path.
+      env: childEnvWithAugmentedPath(),
       shell: false,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      // stdin is only opened when we have something to write; otherwise the
+      // child must never be able to read this process's stdin.
+      stdio: [stdinInput !== undefined ? 'pipe' : 'ignore', 'pipe', 'pipe'],
       ...(cwd ? { cwd } : {}),
     });
+
+    if (stdinInput !== undefined) {
+      const stdin = childProcess.stdin;
+      if (stdin) {
+        // The child may exit before consuming the whole prompt; EPIPE here is
+        // expected and must not crash the server.
+        stdin.on('error', (error: NodeJS.ErrnoException) => {
+          if (error.code === 'EPIPE') {
+            Logger.debug('Child closed stdin before the prompt was fully written');
+          } else {
+            Logger.warn('Failed writing prompt to child stdin:', error);
+          }
+        });
+        stdin.end(stdinInput, 'utf8');
+        Logger.debug(`Wrote ${stdinInput.length} chars to child stdin`);
+      } else {
+        Logger.warn('stdin pipe unavailable; prompt could not be delivered');
+      }
+    }
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
@@ -148,11 +231,18 @@ async function executeOnce(
         // Check for common errors
         const errorMessage = error.message;
         if ((error as any).code === 'ENOENT') {
+          // The executable was verified on disk before spawning, so ENOENT here
+          // points at the environment around it — most often a working
+          // directory that vanished between validation and spawn, or a broken
+          // symlink/interpreter line.
           resolve({
             ok: false,
             code: null,
             stdout: '',
-            stderr: `Command '${command}' not found. Is it installed and in PATH?`,
+            stderr:
+              `Failed to start '${command}' (ENOENT). The executable was found at this path, ` +
+              `so the cause is likely the working directory${cwd ? ` (${cwd})` : ''} ` +
+              `or a broken symlink/interpreter for the executable.`,
             timedOut: false,
           });
         } else {

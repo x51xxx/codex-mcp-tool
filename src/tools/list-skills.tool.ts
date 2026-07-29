@@ -111,6 +111,7 @@ export const listSkillsTool: UnifiedTool = {
     properties: {
       skills: { type: 'array' },
       baseDir: { type: 'string' },
+      error: { type: 'string' },
     },
     required: ['skills', 'baseDir'],
   },
@@ -140,7 +141,11 @@ export const listSkillsTool: UnifiedTool = {
     } catch (error) {
       Logger.error('Skills discovery failed:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      return `❌ **Skills Discovery Failed**\n\nError: ${errorMessage}`;
+      // Keep the failure inside the declared outputSchema.
+      return {
+        text: `❌ **Skills Discovery Failed**\n\nError: ${errorMessage}`,
+        structuredContent: { skills: [], baseDir, error: errorMessage },
+      } as StructuredToolResult;
     }
   },
 };

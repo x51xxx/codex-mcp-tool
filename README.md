@@ -131,6 +131,27 @@ Multi-turn conversations with workspace isolation:
 - `CODEX_SESSION_TTL_MS` - Session TTL (default: 24h)
 - `CODEX_MAX_SESSIONS` - Max sessions (default: 50)
 
+### Codex CLI version
+
+Requires **Codex CLI `0.95.0` or newer**. On older versions the server fails
+with an explicit upgrade message rather than silently dropping unsupported
+flags. Upgrade with `npm install -g @openai/codex@latest`; run the `health` tool
+to see the detected version.
+
+### Troubleshooting: "codex not found"
+
+MCP clients launched from a GUI (Dock, Finder, Start menu) inherit a minimal
+`PATH` that excludes Homebrew, nvm, and volta directories, so `codex` may work
+from a terminal but not from the app. The server searches those locations
+automatically; if it still cannot find the CLI, pin it explicitly:
+
+```json
+{ "env": { "CODEX_CLI_PATH": "/opt/homebrew/bin/codex" } }
+```
+
+Find the value with `which codex`. Run the `health` tool to see which
+executable was resolved and how.
+
 ### Local OSS Models (v1.6.0+)
 
 Run with local Ollama or LM Studio instead of OpenAI:

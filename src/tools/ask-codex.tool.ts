@@ -43,7 +43,9 @@ const askCodexArgsSchema = z.object({
   approval: z
     .enum(['never', 'on-request', 'untrusted'])
     .optional()
-    .describe(`Approval policy: ${Object.values(APPROVAL_POLICIES).join(', ')}`),
+    .describe(
+      `Deprecated alias for approvalPolicy — both map to --ask-for-approval. Prefer approvalPolicy. Values: ${Object.values(APPROVAL_POLICIES).join(', ')}`
+    ),
   sandboxMode: z
     .enum(['read-only', 'workspace-write', 'danger-full-access'])
     .optional()

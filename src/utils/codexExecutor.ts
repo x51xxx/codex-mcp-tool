@@ -76,7 +76,7 @@ export async function executeCodexCLI(
   onProgress?: (newOutput: string) => void
 ): Promise<string> {
   const builder = new CodexCommandBuilder();
-  const { args, tempFiles, workingDir } = await builder.build(prompt, {
+  const { args, tempFiles, workingDir, stdinInput } = await builder.build(prompt, {
     ...options,
     concisePrompt: true,
     useStdinForLongPrompts: options?.useStdinForLongPrompts !== false,
@@ -90,6 +90,7 @@ export async function executeCodexCLI(
       maxOutputBytes: options?.maxOutputBytes,
       retry: options?.retry,
       cwd: workingDir,
+      stdinInput,
     });
 
     if (!result.ok) {
@@ -129,10 +130,11 @@ export async function executeCodex(
   onProgress?: (newOutput: string) => void
 ): Promise<CodexExecutionResult> {
   const builder = new CodexCommandBuilder();
-  const { args, tempFiles, workingDir } = await builder.build(prompt, {
+  const { args, tempFiles, workingDir, stdinInput } = await builder.build(prompt, {
     ...options,
     concisePrompt: false,
-    useStdinForLongPrompts: false,
+    // Oversized prompts go over stdin here too; passing them on argv risks E2BIG.
+    useStdinForLongPrompts: options?.useStdinForLongPrompts !== false,
   });
 
   try {
@@ -144,13 +146,24 @@ export async function executeCodex(
       maxOutputBytes: options?.maxOutputBytes,
       retry: options?.retry,
       cwd: workingDir,
+      stdinInput,
     });
 
     if (!result.ok) {
       // Enhanced error handling with specific messages
       const errorMessage = result.stderr || 'Unknown error';
 
-      if (errorMessage.includes('command not found') || errorMessage.includes('not found')) {
+      // Pre-flight diagnostics (unresolved binary, bad working directory) are
+      // already specific and actionable — surface them verbatim instead of
+      // collapsing them into the generic "not installed" message below.
+      if (
+        errorMessage.startsWith("'codex' was not found") ||
+        errorMessage.startsWith('Working directory')
+      ) {
+        throw new Error(errorMessage);
+      }
+
+      if (errorMessage.includes('command not found')) {
         throw new Error('Codex CLI not found. Install with: npm install -g @openai/codex');
       }
 

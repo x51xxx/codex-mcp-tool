@@ -4,7 +4,7 @@ import { executeCommandDetailed } from '../utils/commandExecutor.js';
 import { MODELS, CLI } from '../constants.js';
 import { Logger } from '../utils/logger.js';
 import { resolveWorkingDirectory } from '../utils/workingDirResolver.js';
-import { isValidModel } from '../utils/modelDetection.js';
+import { isValidModel, assertReasoningEffortSupported } from '../utils/modelDetection.js';
 
 const reviewCodexArgsSchema = z.object({
   prompt: z
@@ -110,6 +110,9 @@ export const reviewCodexTool: UnifiedTool = {
         | 'ultra'
         | undefined;
       if (effort) {
+        // This tool builds its own argument list, so it does not inherit
+        // CodexCommandBuilder's validation — check the pairing explicitly.
+        assertReasoningEffortSupported(selectedModel, effort);
         cmdArgs.push(CLI.FLAGS.CONFIG, `model_reasoning_effort="${effort}"`);
       }
 
@@ -156,12 +159,26 @@ export const reviewCodexTool: UnifiedTool = {
         throw new Error(result.stderr || 'Codex review command failed');
       }
 
+      // A failed run that produced no stdout is an error, not a review — do not
+      // dress the diagnostic up as review output.
+      if (!result.ok && !result.stdout) {
+        return `❌ **Review Failed**: ${result.stderr}`;
+      }
+
       return `## Code Review Results\n\n**Model:** ${selectedModel ?? 'Codex CLI default'}\n${base ? `**Base:** ${base}\n` : ''}${commit ? `**Commit:** ${commit}\n` : ''}\n${response}`;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       Logger.error('Review failed:', error);
 
-      if (errorMessage.includes('command not found') || errorMessage.includes('not found')) {
+      // Pre-flight diagnostics already name the real cause; keep them intact.
+      if (
+        errorMessage.startsWith("'codex' was not found") ||
+        errorMessage.startsWith('Working directory')
+      ) {
+        return `❌ **Review Failed**: ${errorMessage}`;
+      }
+
+      if (errorMessage.includes('command not found')) {
         return '❌ **Error**: Codex CLI not found. Install with: npm install -g @openai/codex';
       }
 

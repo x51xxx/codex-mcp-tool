@@ -1,4 +1,4 @@
-import { MODELS } from '../constants.js';
+import { MODELS, MODEL_REASONING_EFFORTS, REASONING_EFFORTS } from '../constants.js';
 
 /**
  * Lightweight model name validation.
@@ -23,4 +23,29 @@ import { MODELS } from '../constants.js';
 export function isValidModel(modelName: string): boolean {
   const validModels = Object.values(MODELS) as string[];
   return validModels.includes(modelName);
+}
+
+/**
+ * Reject a reasoning effort the selected model cannot serve.
+ *
+ * Only known models are checked. When the model is omitted the CLI config
+ * decides which model runs, so there is nothing to validate against here and
+ * the CLI stays the authority.
+ *
+ * Shared by `CodexCommandBuilder` and `review-changes`, which builds its own
+ * argument list and would otherwise bypass this check.
+ *
+ * @throws Error when the pairing is known to be unsupported
+ */
+export function assertReasoningEffortSupported(model?: string, effort?: string): void {
+  if (!model || !effort) return;
+
+  const supported = MODEL_REASONING_EFFORTS[model];
+  if (!supported || supported.includes(effort)) return;
+
+  throw new Error(
+    `Model '${model}' does not support reasoning effort '${effort}'. ` +
+      `Supported for this model: ${supported.join(', ')}. ` +
+      `(Highest levels — ${REASONING_EFFORTS.MAX}, ${REASONING_EFFORTS.ULTRA} — are GPT-5.6 options.)`
+  );
 }

@@ -1,8 +1,17 @@
 import { z } from 'zod';
 import { UnifiedTool, StructuredToolResult } from './registry.js';
-import { getCodexVersion, getSupportedFeatures } from '../utils/versionDetection.js';
+import {
+  getCodexVersion,
+  checkMinimumCodexVersion,
+  MINIMUM_CODEX_VERSION_STRING,
+} from '../utils/versionDetection.js';
 import { getSessionStats, getSession } from '../utils/sessionStorage.js';
 import { executeCommand } from '../utils/commandExecutor.js';
+import {
+  resolveBinary,
+  describeUnresolvedBinary,
+  CODEX_PATH_ENV,
+} from '../utils/binaryResolver.js';
 import { Logger } from '../utils/logger.js';
 
 const healthArgsSchema = z.object({
@@ -16,6 +25,10 @@ interface HealthStatus {
     installed: boolean;
     version: string;
     authenticated: boolean;
+    /** Absolute path the executable resolved to, or how resolution failed. */
+    path: string;
+    /** How the path was found: override, PATH lookup, or unresolved. */
+    resolvedVia: string;
   };
   features: Record<string, boolean>;
   sessions: {
@@ -56,27 +69,32 @@ async function buildHealthStatus(sessionId?: string, verbose?: boolean): Promise
   let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
 
   // 1. Check Codex CLI
+  const resolution = resolveBinary('codex', CODEX_PATH_ENV);
   const version = await getCodexVersion();
   const isInstalled = version.isValid;
   const isAuthenticated = isInstalled ? await checkAuthentication() : false;
 
-  if (!isInstalled) {
-    issues.push('Codex CLI not installed or not found in PATH');
+  if (!resolution.resolved) {
+    issues.push(describeUnresolvedBinary('codex', resolution, CODEX_PATH_ENV));
+    overallStatus = 'unhealthy';
+  } else if (!isInstalled) {
+    issues.push(`Codex CLI found at ${resolution.command} but "codex --version" did not succeed`);
     overallStatus = 'unhealthy';
   } else if (!isAuthenticated) {
     issues.push('Codex CLI may not be authenticated (run "codex login" or set OPENAI_API_KEY)');
     overallStatus = 'degraded';
   }
 
-  // 2. Check features
-  const features = await getSupportedFeatures();
+  // 2. Check the CLI against the supported minimum.
+  //
+  // This replaces a per-feature matrix whose thresholds all sat far below any
+  // shipping CLI, so every entry reported ✅ regardless of what was installed.
+  const minimumCheck = await checkMinimumCodexVersion();
+  const features: Record<string, boolean> = { minimumVersionMet: minimumCheck.ok };
 
-  // Check for recommended features
-  if (!features.NATIVE_SEARCH) {
-    issues.push('Native search not available (upgrade Codex CLI to v0.52.0+)');
-  }
-  if (!features.RESUME) {
-    issues.push('Resume feature not available (upgrade Codex CLI to v0.36.0+)');
+  if (!minimumCheck.ok && minimumCheck.message) {
+    issues.push(minimumCheck.message);
+    overallStatus = 'unhealthy';
   }
 
   // 3. Check sessions
@@ -119,6 +137,8 @@ async function buildHealthStatus(sessionId?: string, verbose?: boolean): Promise
       installed: isInstalled,
       version: version.raw || 'unknown',
       authenticated: isAuthenticated,
+      path: resolution.resolved ? resolution.command : 'not found',
+      resolvedVia: resolution.source,
     },
     features,
     sessions: {
@@ -147,15 +167,16 @@ function formatHealthReport(health: HealthStatus, verbose: boolean): string {
   output += `|----------|-------|\n`;
   output += `| Installed | ${health.codexCli.installed ? '✅ Yes' : '❌ No'} |\n`;
   output += `| Version | ${health.codexCli.version} |\n`;
+  output += `| Executable | \`${health.codexCli.path}\` (${health.codexCli.resolvedVia}) |\n`;
   output += `| Authenticated | ${health.codexCli.authenticated ? '✅ Yes' : '⚠️ Unknown'} |\n\n`;
 
-  // Features
+  // Compatibility
   if (verbose) {
-    output += `### Supported Features\n`;
-    output += `| Feature | Status |\n`;
-    output += `|---------|--------|\n`;
-    for (const [feature, supported] of Object.entries(health.features)) {
-      output += `| ${feature} | ${supported ? '✅' : '❌'} |\n`;
+    output += `### Compatibility\n`;
+    output += `| Check | Status |\n`;
+    output += `|-------|--------|\n`;
+    for (const [check, ok] of Object.entries(health.features)) {
+      output += `| ${check} (>= ${MINIMUM_CODEX_VERSION_STRING}) | ${ok ? '✅' : '❌'} |\n`;
     }
     output += `\n`;
   }
@@ -200,8 +221,8 @@ function formatHealthReport(health: HealthStatus, verbose: boolean): string {
     if (!health.codexCli.authenticated) {
       output += `2. Authenticate: \`codex login\` or set \`OPENAI_API_KEY\`\n`;
     }
-    if (!health.features.RESUME) {
-      output += `3. Upgrade Codex CLI for resume support: \`npm update -g @openai/codex\`\n`;
+    if (!health.features.minimumVersionMet) {
+      output += `3. Upgrade Codex CLI to >= ${MINIMUM_CODEX_VERSION_STRING}: \`npm install -g @openai/codex@latest\`\n`;
     }
   }
 
@@ -225,6 +246,7 @@ export const healthTool: UnifiedTool = {
       features: { type: 'object' },
       sessions: { type: 'object' },
       issues: { type: 'array' },
+      error: { type: 'string' },
     },
     required: ['status', 'codexCli', 'features', 'sessions', 'issues'],
   },
@@ -245,7 +267,26 @@ export const healthTool: UnifiedTool = {
     } catch (error) {
       Logger.error('Health check failed:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      return `❌ **Health Check Failed**\n\nError: ${errorMessage}\n\nThis may indicate Codex CLI is not properly installed.`;
+      // The declared outputSchema applies to failures too — a bare string here
+      // would be rejected by any client that validates tool results.
+      const failed: HealthStatus & { error: string } = {
+        status: 'unhealthy',
+        codexCli: {
+          installed: false,
+          version: 'unknown',
+          authenticated: false,
+          path: 'unknown',
+          resolvedVia: 'unresolved',
+        },
+        features: {},
+        sessions: { total: 0, withResume: 0, maxSessions: 0, ttlHours: 0 },
+        issues: [errorMessage],
+        error: errorMessage,
+      };
+      return {
+        text: `❌ **Health Check Failed**\n\nError: ${errorMessage}\n\nThis may indicate Codex CLI is not properly installed.`,
+        structuredContent: failed as unknown as Record<string, unknown>,
+      } as StructuredToolResult;
     }
   },
 };

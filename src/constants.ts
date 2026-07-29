@@ -46,6 +46,25 @@ export const REASONING_EFFORTS = {
   ULTRA: 'ultra', // Maximum reasoning with automatic task delegation
 } as const;
 
+/**
+ * Reasoning levels each known model actually accepts, from
+ * `$CODEX_HOME/models_cache.json` (client_version 0.145.0). `max` and `ultra`
+ * are not universal: asking for an unsupported level is rejected by the CLI, so
+ * it is worth catching before spawning.
+ *
+ * Models absent from this map are passed through unchecked — Codex CLI remains
+ * the authority for names this server does not track.
+ */
+export const MODEL_REASONING_EFFORTS: Record<string, readonly string[]> = {
+  [MODELS.GPT5_6]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  [MODELS.GPT5_6_SOL]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  [MODELS.GPT5_6_TERRA]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  [MODELS.GPT5_6_LUNA]: ['low', 'medium', 'high', 'xhigh', 'max'],
+  [MODELS.GPT5_5]: ['low', 'medium', 'high', 'xhigh'],
+  [MODELS.GPT5_4]: ['low', 'medium', 'high', 'xhigh'],
+  [MODELS.GPT5_4_MINI]: ['low', 'medium', 'high', 'xhigh'],
+};
+
 // Personality modes (Codex CLI v0.94.0+)
 export const PERSONALITIES = {
   PRAGMATIC: 'pragmatic',
@@ -111,7 +130,7 @@ export const CLI = {
     BYPASS_HOOK_TRUST: '--dangerously-bypass-hook-trust',
     CD: '--cd',
     PROMPT: '-p',
-    HELP: '-help',
+    HELP: '--help',
     IMAGE: '-i',
     PROFILE: '--profile',
     CONFIG: '-c',
