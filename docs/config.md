@@ -11,20 +11,20 @@ versioned schema, use the
 ## Recommended baseline
 
 ```toml
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 model_reasoning_effort = "medium"
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 personality = "pragmatic"
 ```
 
-Current approval values are `untrusted`, `on-request`, and `never`. The old
-`on-failure` value is no longer accepted. Current sandbox values are
+Current approval values are `on-request` and `never`. The older `untrusted` and
+`on-failure` values are no longer accepted. Current sandbox values are
 `read-only`, `workspace-write`, and `danger-full-access`.
 
 Use the lowest reasoning effort that reliably completes the task. Current MCP
 values are `low`, `medium`, `high`, `xhigh`, `max`, and `ultra`; actual support
-depends on the selected model. `max` and `ultra` are primarily GPT-5.6
+depends on the selected model. `max` and `ultra` are GPT-6 / GPT-5.6
 capabilities, and `ultra` may delegate work to subagents.
 
 ## Per-run overrides

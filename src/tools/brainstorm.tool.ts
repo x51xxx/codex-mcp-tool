@@ -112,9 +112,9 @@ const brainstormArgsSchema = z.object({
       `Optional model override. Known: ${Object.values(MODELS).join(', ')}. If omitted, uses your Codex CLI default (~/.codex/config.toml).`
     ),
   approvalPolicy: z
-    .enum(['never', 'on-request', 'untrusted'])
+    .enum(['never', 'on-request'])
     .optional()
-    .describe('Approval: never, on-request, untrusted'),
+    .describe('Approval: never, on-request'),
   sandboxMode: z
     .enum(['read-only', 'workspace-write', 'danger-full-access'])
     .optional()

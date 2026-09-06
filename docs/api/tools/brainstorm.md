@@ -43,7 +43,7 @@ The `brainstorm` tool leverages AI models to generate creative solutions using v
 
 - **Type:** `string`
 - **Default:** omitted; Codex CLI config and account select the model
-- **Known options:** `"gpt-5.6"`, `"gpt-5.6-sol"`, `"gpt-5.6-terra"`, `"gpt-5.6-luna"`, `"gpt-5.5"`, `"gpt-5.4"`, `"gpt-5.4-mini"`
+- **Known options:** `"gpt-6-astra"`, `"gpt-5.6-sol"`, `"gpt-5.6-terra"`, `"gpt-5.6-luna"`, `"gpt-5.5"`, `"gpt-5.4-mini"`
 - **Recommendation:** Use Sol for complex ideation, Terra for everyday work, and Luna for quick, structured exploration
 
 #### methodology (optional)

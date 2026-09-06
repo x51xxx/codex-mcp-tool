@@ -2,7 +2,7 @@
 
 Codex CLI separates filesystem isolation from approval behavior. Current
 sandbox values are `read-only`, `workspace-write`, and `danger-full-access`.
-Current approval values are `untrusted`, `on-request`, and `never`.
+Current approval values are `on-request` and `never`.
 
 | Intent                             | Flags                                                     | Effect                                                     |
 | ---------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------- |

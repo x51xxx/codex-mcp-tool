@@ -46,6 +46,6 @@ export function assertReasoningEffortSupported(model?: string, effort?: string):
   throw new Error(
     `Model '${model}' does not support reasoning effort '${effort}'. ` +
       `Supported for this model: ${supported.join(', ')}. ` +
-      `(Highest levels — ${REASONING_EFFORTS.MAX}, ${REASONING_EFFORTS.ULTRA} — are GPT-5.6 options.)`
+      `(Highest levels — ${REASONING_EFFORTS.MAX}, ${REASONING_EFFORTS.ULTRA} — are GPT-6/GPT-5.6 options.)`
   );
 }

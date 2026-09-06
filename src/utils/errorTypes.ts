@@ -78,7 +78,7 @@ export const ERROR_SOLUTIONS: Record<ErrorCategory, string[]> = {
     'Omit the model parameter to use the default model',
     'Check available models in your OpenAI account',
     'Verify your subscription supports the requested model',
-    'Try a different model: gpt-5.5, gpt-5.4, gpt-5.4-mini',
+    'Try a different model: gpt-5.6-terra, gpt-5.6-luna, gpt-5.5',
   ],
   [ErrorCategory.RATE_LIMIT]: [
     'Wait a few minutes before retrying',

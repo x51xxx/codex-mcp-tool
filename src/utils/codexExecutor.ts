@@ -15,7 +15,6 @@ export interface CodexExecutionResult {
 export enum ApprovalPolicy {
   Never = 'never',
   OnRequest = 'on-request',
-  Untrusted = 'untrusted',
 }
 
 export enum SandboxMode {

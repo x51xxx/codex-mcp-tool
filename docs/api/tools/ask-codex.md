@@ -38,7 +38,7 @@ The `ask-codex` tool provides non-interactive execution of Codex commands, suppo
 
 - **Type:** `string`
 - **Default:** omitted; Codex CLI config and account select the model
-- **Known options:** `"gpt-5.6"`, `"gpt-5.6-sol"`, `"gpt-5.6-terra"`, `"gpt-5.6-luna"`, `"gpt-5.5"`, `"gpt-5.4"`, `"gpt-5.4-mini"`
+- **Known options:** `"gpt-6-astra"`, `"gpt-5.6-sol"`, `"gpt-5.6-terra"`, `"gpt-5.6-luna"`, `"gpt-5.5"`, `"gpt-5.4-mini"`
 - **Example:** `"model": "gpt-5.6-terra"`
 
 ### sandbox (optional)
@@ -317,10 +317,12 @@ Be precise to improve performance:
 
 Match model to task complexity:
 
-- **gpt-5.6-sol**: Complex, ambiguous, high-value work
-- **gpt-5.6-terra**: Everyday coding and tool use
+- **gpt-6-astra**: Most capable; complex, demanding work
+- **gpt-5.6-sol**: Reliable agentic workhorse for everyday tasks
+- **gpt-5.6-terra**: Balanced everyday coding and tool use
 - **gpt-5.6-luna**: Quick, clear, repeatable tasks
-- **gpt-5.5 / gpt-5.4 / gpt-5.4-mini**: Compatibility fallbacks
+- **gpt-5.5**: Proven previous-generation fallback
+- **gpt-5.4-mini**: Deprecated; Codex steers callers to `gpt-5.6-luna`
 
 ### 4. Enable Change Mode for Edits
 

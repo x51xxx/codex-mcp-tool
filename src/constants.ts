@@ -24,19 +24,22 @@ export const STATUS_MESSAGES = {
   PROCESSING_COMPLETE: '✅ Analysis completed successfully',
 } as const;
 
-// Current Codex CLI models — synced with official docs and the local model cache @ v0.144.3
+// Current Codex CLI models — synced with `$CODEX_HOME/models_cache.json` @ client_version 0.153.4.
+// Only models with `visibility: "list"` are exposed; `gpt-reserve` and `codex-auto-review` are
+// internal (`visibility: "hide"`) and deliberately omitted.
+// Note: the bare moving aliases `gpt-6` and `gpt-5.6` are NOT accepted — the API rejects them with
+// a 400, so every entry here is a concrete slug.
 export const MODELS = {
-  GPT5_6: 'gpt-5.6', // Moving alias for the current GPT-5.6 default (Sol today)
-  GPT5_6_SOL: 'gpt-5.6-sol', // Frontier model for complex, open-ended, high-value work
-  GPT5_6_TERRA: 'gpt-5.6-terra', // Balanced everyday workhorse
-  GPT5_6_LUNA: 'gpt-5.6-luna', // Fast, affordable model for clear, repeatable tasks
-  GPT5_5: 'gpt-5.5', // Previous-generation frontier model
-  GPT5_4: 'gpt-5.4', // Professional coding and agentic workflows
-  GPT5_4_MINI: 'gpt-5.4-mini', // Small, fast, cost-efficient model
+  GPT6_ASTRA: 'gpt-6-astra', // Most capable model for complex, demanding work
+  GPT5_6_SOL: 'gpt-5.6-sol', // Reliable agentic workhorse for everyday tasks
+  GPT5_6_TERRA: 'gpt-5.6-terra', // Balanced agentic coding model for everyday work
+  GPT5_6_LUNA: 'gpt-5.6-luna', // Fast, affordable agentic coding model
+  GPT5_5: 'gpt-5.5', // Proven previous-generation model for coding and general work
+  GPT5_4_MINI: 'gpt-5.4-mini', // Deprecated — Codex steers callers to gpt-5.6-luna
 } as const;
 
 // Reasoning levels exposed by the current Codex CLI model picker.
-// Availability is model-dependent: max/ultra are primarily GPT-5.6 Sol/Terra options.
+// Availability is model-dependent: max/ultra are GPT-6 / GPT-5.6 options.
 export const REASONING_EFFORTS = {
   LOW: 'low', // Fast responses with lighter reasoning
   MEDIUM: 'medium', // Default: Balances speed and reasoning depth
@@ -48,7 +51,7 @@ export const REASONING_EFFORTS = {
 
 /**
  * Reasoning levels each known model actually accepts, from
- * `$CODEX_HOME/models_cache.json` (client_version 0.145.0). `max` and `ultra`
+ * `$CODEX_HOME/models_cache.json` (client_version 0.153.4). `max` and `ultra`
  * are not universal: asking for an unsupported level is rejected by the CLI, so
  * it is worth catching before spawning.
  *
@@ -56,12 +59,11 @@ export const REASONING_EFFORTS = {
  * the authority for names this server does not track.
  */
 export const MODEL_REASONING_EFFORTS: Record<string, readonly string[]> = {
-  [MODELS.GPT5_6]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  [MODELS.GPT6_ASTRA]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT5_6_SOL]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT5_6_TERRA]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT5_6_LUNA]: ['low', 'medium', 'high', 'xhigh', 'max'],
   [MODELS.GPT5_5]: ['low', 'medium', 'high', 'xhigh'],
-  [MODELS.GPT5_4]: ['low', 'medium', 'high', 'xhigh'],
   [MODELS.GPT5_4_MINI]: ['low', 'medium', 'high', 'xhigh'],
 };
 
@@ -79,8 +81,9 @@ export const SANDBOX_MODES = {
 } as const;
 
 // Approval policies
+// Codex CLI 0.153.x accepts only these two values for `-a/--ask-for-approval`.
+// `untrusted` was removed upstream and now fails clap parsing with exit code 2.
 export const APPROVAL_POLICIES = {
-  UNTRUSTED: 'untrusted',
   ON_REQUEST: 'on-request',
   NEVER: 'never',
 } as const;
@@ -174,7 +177,7 @@ export interface ToolArguments {
   model?: string;
   sandbox?: boolean | string;
   // Codex approvals/sandbox controls
-  approvalPolicy?: 'never' | 'on-request' | 'untrusted';
+  approvalPolicy?: 'never' | 'on-request';
   approval?: string; // Alternative to approvalPolicy
   sandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access';
   fullAuto?: boolean | string; // compatibility alias for workspace-write + never

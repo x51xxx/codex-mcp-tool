@@ -15,8 +15,8 @@
 
 Key global flags include `--model/-m`, `--sandbox/-s`,
 `--ask-for-approval/-a`, `--search`, `--add-dir`, `--strict-config`,
-`--oss`, and `--local-provider`. Current approval values are `untrusted`,
-`on-request`, and `never`.
+`--oss`, and `--local-provider`. Current approval values are `on-request` and
+`never`.
 
 Current `exec`-only flags include `--skip-git-repo-check`, `--ephemeral`,
 `--ignore-user-config`, `--ignore-rules`, `--output-schema`, `--json`, and

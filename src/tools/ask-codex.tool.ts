@@ -37,11 +37,11 @@ const askCodexArgsSchema = z.object({
     .optional()
     .describe('Compatibility alias for workspace-write with approval=never (not --yolo)'),
   approvalPolicy: z
-    .enum(['never', 'on-request', 'untrusted'])
+    .enum(['never', 'on-request'])
     .optional()
-    .describe('Approval: never, on-request, untrusted'),
+    .describe('Approval: never, on-request'),
   approval: z
-    .enum(['never', 'on-request', 'untrusted'])
+    .enum(['never', 'on-request'])
     .optional()
     .describe(
       `Deprecated alias for approvalPolicy — both map to --ask-for-approval. Prefer approvalPolicy. Values: ${Object.values(APPROVAL_POLICIES).join(', ')}`
@@ -126,7 +126,7 @@ const askCodexArgsSchema = z.object({
     .enum(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'])
     .optional()
     .describe(
-      'Reasoning depth. Omit to use the CLI default. max/ultra are model-dependent GPT-5.6 options; ultra may delegate to subagents.'
+      'Reasoning depth. Omit to use the CLI default. max/ultra are model-dependent GPT-6/GPT-5.6 options; ultra may delegate to subagents.'
     ),
   // Session management (v1.4.0+)
   sessionId: z

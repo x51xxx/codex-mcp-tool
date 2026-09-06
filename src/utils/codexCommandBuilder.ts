@@ -246,7 +246,8 @@ export class CodexCommandBuilder {
 
     // `approval` reaches the builder as a free-form string (ToolArguments types
     // it as `string`), so an unknown value would surface as a raw clap error
-    // from the CLI. The removed `on-failure` policy is the likely offender.
+    // from the CLI. The removed `on-failure` and `untrusted` policies are the
+    // likely offenders.
     const validPolicies = Object.values(APPROVAL_POLICIES) as string[];
     for (const [name, value] of [
       ['approvalPolicy', options?.approvalPolicy],
@@ -255,7 +256,7 @@ export class CodexCommandBuilder {
       if (value && !validPolicies.includes(value)) {
         throw new Error(
           `Invalid ${name} '${value}'. Valid values: ${validPolicies.join(', ')}. ` +
-            `('on-failure' was removed from Codex CLI.)`
+            `('on-failure' and 'untrusted' were both removed from Codex CLI.)`
         );
       }
     }
@@ -297,7 +298,7 @@ export class CodexCommandBuilder {
   /**
    * Add safety control arguments.
    *
-   * Codex CLI removed --full-auto and the on-failure approval policy. Keep the
+   * Codex CLI removed --full-auto and the on-failure/untrusted approval policies. Keep the
    * MCP compatibility option by expanding it to a writable sandbox with no
    * interactive approval prompts. This is not equivalent to --yolo: sandboxing
    * remains enabled and escalation failures are returned to the model.

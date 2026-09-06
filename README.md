@@ -104,15 +104,17 @@ single call. Reasoning depth is calibrated per tool:
 
 | Model           | Recommendation                                         |
 | --------------- | ------------------------------------------------------ |
-| `gpt-5.6-sol`   | Complex, ambiguous, high-value work; strongest default |
-| `gpt-5.6-terra` | Everyday coding with a better capability/cost balance  |
+| `gpt-6-astra`   | Most capable; complex, demanding, high-value work      |
+| `gpt-5.6-sol`   | Reliable agentic workhorse for everyday tasks          |
+| `gpt-5.6-terra` | Balanced everyday coding with a better capability/cost |
 | `gpt-5.6-luna`  | Clear, repeatable, high-volume tasks                   |
-| `gpt-5.5`       | Previous-generation fallback                           |
-| `gpt-5.4`       | Professional coding fallback                           |
-| `gpt-5.4-mini`  | Small, fast, cost-efficient fallback                   |
+| `gpt-5.5`       | Proven previous-generation fallback                    |
+| `gpt-5.4-mini`  | Deprecated — Codex steers callers to `gpt-5.6-luna`    |
 
-GPT-5.6 Sol and Terra can expose `max` and `ultra` reasoning. `ultra` may
-delegate work to subagents; most tasks should remain on `medium` or `high`.
+GPT-6 Astra and GPT-5.6 Sol/Terra expose `max` and `ultra` reasoning; Luna tops
+out at `max`. `ultra` may delegate work to subagents; most tasks should remain
+on `medium` or `high`. Pass a concrete slug — the bare moving aliases `gpt-6`
+and `gpt-5.6` are rejected by the API.
 
 ## Key Features
 
@@ -211,14 +213,15 @@ Use `health` tool for diagnostics: `'use health verbose:true'`
 
 ## Migration
 
+**v2.4.x → v2.5.0:** Codex CLI `0.153.4` compatibility pass; added
+`gpt-6-astra`. **Breaking:** dropped `gpt-5.4` and the moving alias `gpt-5.6`
+(both now rejected with HTTP 400), and removed the `untrusted` approval policy,
+which Codex CLI 0.153.x no longer parses.
+
 **v2.3.x → v2.4.0:** Codex CLI `0.144.3` compatibility audit; added GPT-5.6
 Sol/Terra/Luna, `max`/`ultra` reasoning, current exec flags, native-only search,
 and safe compatibility handling for the removed `--full-auto` flag and
 `on-failure` approval policy.
-
-**Current CLI compatibility:** added GPT-5.6 Sol/Terra/Luna, `max`/`ultra`
-reasoning, current exec flags, native-only search, and safe expansion of the
-removed `--full-auto` compatibility option.
 
 **v2.2.x → v2.3.0:** `gpt-5.5` as new default, added `gpt-5.4-mini`, dropped retired models (`gpt-5.3-codex-spark`, `gpt-5.2-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex-mini`).
 

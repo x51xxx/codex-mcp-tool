@@ -9,18 +9,21 @@ This list was verified against Codex CLI `0.144.3` and its model cache on
 
 ## Recommended models
 
-| Model           | Best for                             | Guidance                                   |
-| --------------- | ------------------------------------ | ------------------------------------------ |
-| `gpt-5.6-sol`   | Complex, open-ended, high-value work | Strongest default when quality matters     |
-| `gpt-5.6-terra` | Everyday coding and tool use         | Balanced capability and cost               |
-| `gpt-5.6-luna`  | Clear, repeatable, high-volume work  | Fastest and most affordable GPT-5.6 option |
-| `gpt-5.5`       | Previous-generation frontier work    | Compatibility fallback                     |
-| `gpt-5.4`       | Professional coding workflows        | Compatibility fallback                     |
-| `gpt-5.4-mini`  | Small, well-scoped tasks             | Low-cost compatibility fallback            |
+| Model           | Best for                            | Guidance                                   |
+| --------------- | ----------------------------------- | ------------------------------------------ |
+| `gpt-6-astra`   | Complex, demanding, high-value work | Most capable; use when quality matters     |
+| `gpt-5.6-sol`   | Everyday tasks needing reliability  | Dependable agentic workhorse               |
+| `gpt-5.6-terra` | Everyday coding and tool use        | Balanced capability and cost               |
+| `gpt-5.6-luna`  | Clear, repeatable, high-volume work | Fastest and most affordable GPT-5.6 option |
+| `gpt-5.5`       | Previous-generation work            | Proven compatibility fallback              |
+| `gpt-5.4-mini`  | Small, well-scoped tasks            | Deprecated; prefer `gpt-5.6-luna`          |
 
-The official Codex guidance is to start with Sol when unsure, use Terra as the
-everyday workhorse, and use Luna when the task is specific and success is easy
+Reach for Astra when the problem is hard or open-ended, use Sol or Terra as the
+everyday workhorses, and use Luna when the task is specific and success is easy
 to verify.
+
+Pass a concrete slug. The bare moving aliases `gpt-6` and `gpt-5.6` are not
+accepted — the API rejects them with an HTTP 400.
 
 ## Reasoning effort
 
@@ -41,7 +44,7 @@ Terra expose both; Luna exposes `max` but not `ultra`.
 Direct CLI:
 
 ```bash
-codex exec -m gpt-5.6-sol "Review the current changes"
+codex exec -m gpt-6-astra "Review the current changes"
 codex exec -m gpt-5.6-terra "Refactor the request parser"
 codex exec -m gpt-5.6-luna "Classify these build errors"
 ```
