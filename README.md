@@ -1,3 +1,5 @@
+
+
 # Codex MCP Server
 
 <div align="center">
@@ -178,6 +180,7 @@ Run with local Ollama or LM Studio instead of OpenAI:
 | `model`                | Model selection                                   |
 | `sessionId`            | Enable conversation continuity                    |
 | `sandbox`              | Compatibility automation: workspace-write + never |
+| `fullAuto`             | Compatibility automation: workspace-write + never |
 | `search`               | Enable web search                                 |
 | `changeMode`           | Structured OLD/NEW edits                          |
 | `addDirs`              | Additional writable directories                   |
