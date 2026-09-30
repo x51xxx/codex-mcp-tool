@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Model list synced with Codex CLI `0.159.2`** (`models_cache.json`, every slug checked with a live one-token run): added `gpt-6.1-sol` (latest workhorse), `gpt-6-sol` and `gpt-6-luna`; `gpt-5.6-*` and `gpt-5.5` stay as older/legacy options. `gpt-6.1-sol` needs a recent CLI — 0.157.1 rejects it with the same 400 an unknown slug gets. Reasoning map: Luna models stop at `max`, `gpt-5.5` at `xhigh`.
+
+### Removed
+
+- `gpt-5.4-mini` (`MODELS.GPT5_4_MINI`): withdrawn upstream; now returns HTTP 400 "not supported when using Codex with a ChatGPT account" on both 0.157.1 and 0.159.2.
+
 ## [2.4.0] - 2026-07-13
 
 ### Added

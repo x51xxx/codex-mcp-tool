@@ -152,7 +152,7 @@ codex models list
 ```javascript
 {
   "prompt": "your prompt",
-  "model": "gpt-5.1-codex-mini"  // Use available model
+  "model": "gpt-6-luna"  // Use a model your account and CLI support
 }
 ```
 
@@ -323,7 +323,7 @@ DEBUG=codex-mcp:parser npx @trishchuk/codex-mcp-tool
 
 ```javascript
 {
-  "model": "gpt-5.1-codex-mini"  // Faster than GPT-5
+  "model": "gpt-6-luna"  // Fastest tier
 }
 ```
 
@@ -408,10 +408,10 @@ Yes, specify different models per request:
 
 ```javascript
 // First request
-{ "prompt": "quick task", "model": "gpt-5.1-codex-mini" }
+{ "prompt": "quick task", "model": "gpt-6-luna" }
 
 // Second request
-{ "prompt": "complex analysis", "model": "gpt-5.1-codex-max" }
+{ "prompt": "complex analysis", "model": "gpt-6-astra" }
 ```
 
 ### How do I handle large codebases?

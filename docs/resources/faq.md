@@ -19,13 +19,16 @@ Codex MCP Tool is a Model Context Protocol (MCP) server that bridges OpenAI's Co
 
 ### Which AI models are supported?
 
-Currently supported OpenAI models:
+By default the server omits `model` and Codex CLI uses the model from `~/.codex/config.toml`. Known models (Codex CLI 0.159.2):
 
-- **gpt-5.3-codex** - Default, latest frontier agentic coding
-- **gpt-5.2-codex** - Frontier agentic coding
-- **gpt-5.1-codex-max** - Deep and fast reasoning
-- **gpt-5.1-codex-mini** - Fast and cost-effective
-- **gpt-5.2** - Broad knowledge, reasoning and coding
+- **gpt-6.1-sol** - Latest workhorse for coding and everyday work (Codex CLI 0.159+)
+- **gpt-6-astra** - Frontier intelligence for the most demanding work
+- **gpt-6-sol** - Previous-generation workhorse
+- **gpt-6-luna** - Fast and affordable; easier, repeatable tasks
+- **gpt-5.6-sol** / **gpt-5.6-terra** / **gpt-5.6-luna** - Older generation, still available
+- **gpt-5.5** - Legacy; Codex steers callers to `gpt-5.6-sol`
+
+Use a concrete slug: the bare aliases `gpt-6` and `gpt-5.6` are rejected with HTTP 400.
 
 ### Is this an official OpenAI tool?
 
@@ -117,7 +120,7 @@ Specify the model in your request:
   "name": "ask-codex",
   "arguments": {
     "prompt": "your task",
-    "model": "gpt-5.1-codex-max"  // or "gpt-5.1-codex", "gpt-5.1-codex-mini"
+    "model": "gpt-6-astra"  // or "gpt-6.1-sol", "gpt-6-luna"
   }
 }
 ```
@@ -260,7 +263,7 @@ DEBUG=codex-mcp:* npx @trishchuk/codex-mcp-tool
 
 1. Check available models: `codex models list`
 2. Verify API access permissions
-3. Try a different model (e.g., `gpt-5.1-codex-mini`)
+3. Try a different model (e.g., `gpt-6-luna`)
 4. Check OpenAI account status
 
 ### How do I report bugs?
@@ -296,10 +299,10 @@ See our [Contributing Guide](https://github.com/x51xxx/codex-mcp-tool/blob/main/
 
 ### What's the difference between Codex models?
 
-- **gpt-5.1-codex-max** - Most capable, highest reliability for coding
-- **gpt-5.1-codex** - Optimized for codex tasks
-- **gpt-5.1-codex-mini** - Faster and more cost-effective
-- **gpt-5.1** - General purpose with broad reasoning capabilities
+- **Astra** - the most capable tier, for hard or open-ended work
+- **Sol** - the everyday workhorse; `gpt-6.1-sol` is the newest
+- **Luna** - the fast, affordable tier for well-specified tasks; tops out at `max` reasoning
+- **Terra** (GPT-5.6 only) - balanced capability and cost
 
 ### Can I use this with other AI providers?
 
@@ -313,19 +316,20 @@ Currently, Codex MCP Tool is designed for OpenAI's models via Codex CLI. For oth
 
 ### How can I improve response times?
 
-1. **Use faster models:** `gpt-5.1-codex-mini` is fastest
+1. **Use faster models:** `gpt-6-luna` with `reasoningEffort: "low"`
 2. **Be specific with file references:** Avoid broad globs
 3. **Enable caching:** Reuse common analyses
 4. **Process in batches:** Break large tasks
 
 ### What are the context limits?
 
-| Model              | Context Window | Recommended Max |
-| ------------------ | -------------- | --------------- |
-| gpt-5.1-codex-max  | Extended       | Varies          |
-| gpt-5.1-codex      | Extended       | Varies          |
-| gpt-5.1-codex-mini | Standard       | Varies          |
-| gpt-5.1            | Extended       | Varies          |
+| Model                                    | Context window | Max context window |
+| ---------------------------------------- | -------------- | ------------------ |
+| gpt-6.1-sol, gpt-6-astra/sol/luna        | 272K           | 872K               |
+| gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna | 272K           | 872K               |
+| gpt-5.5                                  | 272K           | 272K               |
+
+Values come from Codex's `models_cache.json` (client 0.159.2).
 
 ### How do I estimate costs?
 
@@ -335,9 +339,7 @@ tokens = prompt_length + file_content_length + response_length;
 cost = (tokens / 1000) * model_price_per_1k;
 
 // Model prices vary - check OpenAI pricing for current rates
-// gpt-5.1-codex-max: Premium pricing
-// gpt-5.1-codex: Standard pricing
-// gpt-5.1-codex-mini: Economy pricing
+// Astra: highest cost; Sol: everyday; Luna: most economical
 ```
 
 ## Future & Roadmap

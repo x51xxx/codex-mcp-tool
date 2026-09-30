@@ -302,7 +302,7 @@ const result = await mcp.call('batch-codex', {
   parallel: true,
   concurrency: 3,
   stopOnError: true,
-  model: 'gpt-5.4-mini',
+  model: 'gpt-6-luna',
   tasks: [
     { task: 'analyze module architecture', target: '@src/auth/', priority: 'high' },
     { task: 'analyze module architecture', target: '@src/api/', priority: 'high' },

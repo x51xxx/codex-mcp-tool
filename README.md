@@ -95,26 +95,30 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 ## Models
 
 By default the `model` parameter is **omitted** and Codex CLI applies the
-default model from your `~/.codex/config.toml` (for example `model = "gpt-5.6-sol"`).
+default model from your `~/.codex/config.toml` (for example `model = "gpt-6.1-sol"`).
 Pass `model` only when you need to override the configured default for a
 single call. Reasoning depth is calibrated per tool:
 
 - `ask-codex` — uses the Codex CLI default reasoning (medium). Increase it only when the task needs more planning or checking.
 - `brainstorm`, `do-act`, `review-changes` — default `reasoningEffort: "high"` (creative ideation, act-check-fix loops, and code review benefit from deeper reasoning).
 
-| Model           | Recommendation                                         |
-| --------------- | ------------------------------------------------------ |
-| `gpt-6-astra`   | Most capable; complex, demanding, high-value work      |
-| `gpt-5.6-sol`   | Reliable agentic workhorse for everyday tasks          |
-| `gpt-5.6-terra` | Balanced everyday coding with a better capability/cost |
-| `gpt-5.6-luna`  | Clear, repeatable, high-volume tasks                   |
-| `gpt-5.5`       | Proven previous-generation fallback                    |
-| `gpt-5.4-mini`  | Deprecated — Codex steers callers to `gpt-5.6-luna`    |
+| Model           | Recommendation                                             |
+| --------------- | ---------------------------------------------------------- |
+| `gpt-6.1-sol`   | Latest workhorse for coding and everyday work (CLI 0.159+) |
+| `gpt-6-astra`   | Frontier intelligence for the most demanding work          |
+| `gpt-6-sol`     | Previous-generation workhorse                              |
+| `gpt-6-luna`    | Fast and affordable; easier, repeatable tasks              |
+| `gpt-5.6-sol`   | Older-generation workhorse                                 |
+| `gpt-5.6-terra` | Older balanced model for straightforward work              |
+| `gpt-5.6-luna`  | Older fast, efficient model                                |
+| `gpt-5.5`       | Legacy — Codex steers callers to `gpt-5.6-sol`             |
 
-GPT-6 Astra and GPT-5.6 Sol/Terra expose `max` and `ultra` reasoning; Luna tops
-out at `max`. `ultra` may delegate work to subagents; most tasks should remain
-on `medium` or `high`. Pass a concrete slug — the bare moving aliases `gpt-6`
-and `gpt-5.6` are rejected by the API.
+Sol, Astra and Terra models expose `max` and `ultra` reasoning; Luna models top
+out at `max`, and `gpt-5.5` at `xhigh`. `ultra` may delegate work to subagents;
+most tasks should remain on `medium` or `high`. Pass a concrete slug — the bare
+moving aliases `gpt-6` and `gpt-5.6` are rejected by the API. `gpt-6.1-sol` is
+rejected by Codex CLI 0.157.x with the same 400 an unknown slug gets; upgrade
+with `npm install -g @openai/codex@latest`.
 
 ## Key Features
 

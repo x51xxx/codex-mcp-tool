@@ -6,16 +6,16 @@ In 2021, OpenAI released Codex, an AI system designed to generate code from natu
 
 ### Which models are supported?
 
-Start with `gpt-6-astra` when quality matters, use `gpt-5.6-sol` or `gpt-5.6-terra` for everyday work, and use `gpt-5.6-luna` for clear, repeatable tasks. The default reasoning level is medium; increase it only when the task needs deeper planning or checking.
+Start with `gpt-6-astra` when quality matters, use `gpt-6.1-sol` for everyday work, and use `gpt-6-luna` for clear, repeatable tasks. The default reasoning level is medium; increase it only when the task needs deeper planning or checking.
 
 Available models:
 
-- **gpt-6-astra** - Most capable model for complex, demanding work
-- **gpt-5.6-sol** - Reliable agentic workhorse for everyday tasks
-- **gpt-5.6-terra** - Balanced everyday coding and tool use
-- **gpt-5.6-luna** - Fast, affordable, repeatable work
-- **gpt-5.5** - Proven previous-generation fallback
-- **gpt-5.4-mini** - Deprecated; Codex steers callers to `gpt-5.6-luna`
+- **gpt-6.1-sol** - Latest workhorse for coding and everyday work (Codex CLI 0.159+)
+- **gpt-6-astra** - Frontier intelligence for the most demanding work
+- **gpt-6-sol** - Previous-generation workhorse
+- **gpt-6-luna** - Fast and affordable; easier, repeatable tasks
+- **gpt-5.6-sol** / **gpt-5.6-terra** / **gpt-5.6-luna** - Older generation, still available
+- **gpt-5.5** - Legacy; Codex steers callers to `gpt-5.6-sol`
 
 Use a concrete slug: the bare moving aliases `gpt-6` and `gpt-5.6` are rejected
 with an HTTP 400.

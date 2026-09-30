@@ -4,23 +4,28 @@ The MCP server normally omits `--model`, so Codex CLI selects the model from
 your account and `$CODEX_HOME/config.toml`. Pass `model` only when a task needs
 a deliberate override.
 
-This list was verified against Codex CLI `0.144.3` and its model cache on
-2026-07-13. Availability still depends on account, workspace, and rollout.
+This list was verified against Codex CLI `0.159.2` and its model cache on
+2026-09-30, with a live one-token run per slug. Availability still depends on account, workspace, and rollout.
 
 ## Recommended models
 
 | Model           | Best for                            | Guidance                                   |
 | --------------- | ----------------------------------- | ------------------------------------------ |
-| `gpt-6-astra`   | Complex, demanding, high-value work | Most capable; use when quality matters     |
-| `gpt-5.6-sol`   | Everyday tasks needing reliability  | Dependable agentic workhorse               |
-| `gpt-5.6-terra` | Everyday coding and tool use        | Balanced capability and cost               |
-| `gpt-5.6-luna`  | Clear, repeatable, high-volume work | Fastest and most affordable GPT-5.6 option |
-| `gpt-5.5`       | Previous-generation work            | Proven compatibility fallback              |
-| `gpt-5.4-mini`  | Small, well-scoped tasks            | Deprecated; prefer `gpt-5.6-luna`          |
+| `gpt-6.1-sol`   | Everyday coding and agentic work    | Latest workhorse; needs Codex CLI 0.159+   |
+| `gpt-6-astra`   | Complex, demanding, high-value work | Frontier intelligence; use when it matters |
+| `gpt-6-sol`     | Everyday work on an older CLI       | Previous-generation workhorse              |
+| `gpt-6-luna`    | Clear, repeatable, high-volume work | Fast and affordable                        |
+| `gpt-5.6-sol`   | Older-generation work               | Still available                            |
+| `gpt-5.6-terra` | Straightforward work                | Older balanced model                       |
+| `gpt-5.6-luna`  | Simple, well-scoped tasks           | Older fast, efficient model                |
+| `gpt-5.5`       | Legacy compatibility                | Codex steers callers to `gpt-5.6-sol`      |
 
-Reach for Astra when the problem is hard or open-ended, use Sol or Terra as the
-everyday workhorses, and use Luna when the task is specific and success is easy
-to verify.
+Reach for Astra when the problem is hard or open-ended, use Sol as the everyday
+workhorse, and use Luna when the task is specific and success is easy to verify.
+
+`gpt-6.1-sol` is rejected by Codex CLI 0.157.x with "not supported when using
+Codex with a ChatGPT account" — the same 400 an unknown slug gets. Upgrade with
+`npm install -g @openai/codex@latest`. `gpt-5.4-mini` was removed upstream.
 
 Pass a concrete slug. The bare moving aliases `gpt-6` and `gpt-5.6` are not
 accepted — the API rejects them with an HTTP 400.

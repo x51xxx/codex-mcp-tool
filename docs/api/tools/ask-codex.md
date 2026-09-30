@@ -38,7 +38,7 @@ The `ask-codex` tool provides non-interactive execution of Codex commands, suppo
 
 - **Type:** `string`
 - **Default:** omitted; Codex CLI config and account select the model
-- **Known options:** `"gpt-6-astra"`, `"gpt-5.6-sol"`, `"gpt-5.6-terra"`, `"gpt-5.6-luna"`, `"gpt-5.5"`, `"gpt-5.4-mini"`
+- **Known options:** `"gpt-6.1-sol"`, `"gpt-6-astra"`, `"gpt-6-sol"`, `"gpt-6-luna"`, `"gpt-5.6-sol"`, `"gpt-5.6-terra"`, `"gpt-5.6-luna"`, `"gpt-5.5"`
 - **Example:** `"model": "gpt-5.6-terra"`
 
 ### sandbox (optional)
@@ -166,7 +166,7 @@ Include files in your prompts using the @ symbol:
   "name": "ask-codex",
   "arguments": {
     "prompt": "create unit tests for @src/utils/calculator.ts",
-    "model": "gpt-5.4-mini",
+    "model": "gpt-6-luna",
     "sandboxMode": "workspace-write"
   }
 }
@@ -317,12 +317,12 @@ Be precise to improve performance:
 
 Match model to task complexity:
 
-- **gpt-6-astra**: Most capable; complex, demanding work
-- **gpt-5.6-sol**: Reliable agentic workhorse for everyday tasks
-- **gpt-5.6-terra**: Balanced everyday coding and tool use
-- **gpt-5.6-luna**: Quick, clear, repeatable tasks
-- **gpt-5.5**: Proven previous-generation fallback
-- **gpt-5.4-mini**: Deprecated; Codex steers callers to `gpt-5.6-luna`
+- **gpt-6.1-sol**: Latest workhorse for coding and everyday work (Codex CLI 0.159+)
+- **gpt-6-astra**: Frontier intelligence; complex, demanding work
+- **gpt-6-sol**: Previous-generation workhorse
+- **gpt-6-luna**: Quick, clear, repeatable tasks
+- **gpt-5.6-sol** / **gpt-5.6-terra** / **gpt-5.6-luna**: Older generation, still available
+- **gpt-5.5**: Legacy; Codex steers callers to `gpt-5.6-sol`
 
 ### 4. Enable Change Mode for Edits
 
@@ -370,7 +370,7 @@ For consistent file resolution:
 /codex-cli:ask-codex analyze @src/
 
 # With options
-/codex-cli:ask-codex --model gpt-5.4-mini review @src/api/
+/codex-cli:ask-codex --model gpt-6-luna review @src/api/
 ```
 
 ### In Automation Scripts
@@ -386,7 +386,7 @@ const result = execSync('npx @trishchuk/codex-mcp-tool', {
       name: 'ask-codex',
       arguments: {
         prompt: 'analyze @src/',
-        model: 'gpt-5.4-mini',
+        model: 'gpt-6-luna',
       },
     },
   }),

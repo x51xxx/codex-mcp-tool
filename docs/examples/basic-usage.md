@@ -482,9 +482,9 @@ Begin with single files or small directories before processing entire codebases.
 
 ### 2. Use Appropriate Models
 
-- **gpt-5.6-luna**: Quick analysis, simple tasks
-- **gpt-5.6-terra**: Standard coding tasks
-- **gpt-5.6-sol**: Complex refactoring, comprehensive generation
+- **gpt-6-luna**: Quick analysis, simple tasks
+- **gpt-6.1-sol**: Standard coding tasks, refactoring, comprehensive generation
+- **gpt-6-astra**: Hard, open-ended problems
 
 ### 3. Leverage Change Mode
 

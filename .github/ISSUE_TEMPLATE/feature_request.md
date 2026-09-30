@@ -33,8 +33,8 @@ assignees: ''
 ## Model Considerations
 <!-- Would this feature require specific models? -->
 - [ ] Works with all models
-- [ ] Requires gpt-5.1-codex-max
-- [ ] Requires gpt-5.1-codex or gpt-5.1-codex-mini
+- [ ] Requires a specific model (e.g. gpt-6-astra)
+- [ ] Requires a minimum Codex CLI version
 - [ ] Model-specific feature
 
 ## Example Implementation

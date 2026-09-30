@@ -24,22 +24,26 @@ export const STATUS_MESSAGES = {
   PROCESSING_COMPLETE: '✅ Analysis completed successfully',
 } as const;
 
-// Current Codex CLI models — synced with `$CODEX_HOME/models_cache.json` @ client_version 0.153.4.
+// Current Codex CLI models — synced with `$CODEX_HOME/models_cache.json` @ client_version 0.159.2.
 // Only models with `visibility: "list"` are exposed; `gpt-reserve` and `codex-auto-review` are
 // internal (`visibility: "hide"`) and deliberately omitted.
 // Note: the bare moving aliases `gpt-6` and `gpt-5.6` are NOT accepted — the API rejects them with
 // a 400, so every entry here is a concrete slug.
+// `gpt-6.1-sol` needs a recent CLI: 0.159.2 runs it, 0.157.1 gets a 400 ("not supported when using
+// Codex with a ChatGPT account"), the same error an unknown slug produces.
 export const MODELS = {
-  GPT6_ASTRA: 'gpt-6-astra', // Most capable model for complex, demanding work
-  GPT5_6_SOL: 'gpt-5.6-sol', // Reliable agentic workhorse for everyday tasks
-  GPT5_6_TERRA: 'gpt-5.6-terra', // Balanced agentic coding model for everyday work
-  GPT5_6_LUNA: 'gpt-5.6-luna', // Fast, affordable agentic coding model
-  GPT5_5: 'gpt-5.5', // Proven previous-generation model for coding and general work
-  GPT5_4_MINI: 'gpt-5.4-mini', // Deprecated — Codex steers callers to gpt-5.6-luna
+  GPT6_1_SOL: 'gpt-6.1-sol', // Latest workhorse for coding and everyday work (Codex CLI 0.159+)
+  GPT6_ASTRA: 'gpt-6-astra', // Frontier intelligence for the most demanding work
+  GPT6_SOL: 'gpt-6-sol', // Previous-generation workhorse
+  GPT6_LUNA: 'gpt-6-luna', // Fast, affordable model for easier tasks
+  GPT5_6_SOL: 'gpt-5.6-sol', // Older-generation workhorse
+  GPT5_6_TERRA: 'gpt-5.6-terra', // Older balanced model for straightforward work
+  GPT5_6_LUNA: 'gpt-5.6-luna', // Older fast, efficient model
+  GPT5_5: 'gpt-5.5', // Legacy; Codex steers callers to gpt-5.6-sol
 } as const;
 
 // Reasoning levels exposed by the current Codex CLI model picker.
-// Availability is model-dependent: max/ultra are GPT-6 / GPT-5.6 options.
+// Availability is model-dependent: max/ultra are GPT-6.x / GPT-5.6 options; Luna models stop at max.
 export const REASONING_EFFORTS = {
   LOW: 'low', // Fast responses with lighter reasoning
   MEDIUM: 'medium', // Default: Balances speed and reasoning depth
@@ -51,7 +55,7 @@ export const REASONING_EFFORTS = {
 
 /**
  * Reasoning levels each known model actually accepts, from
- * `$CODEX_HOME/models_cache.json` (client_version 0.153.4). `max` and `ultra`
+ * `$CODEX_HOME/models_cache.json` (client_version 0.159.2). `max` and `ultra`
  * are not universal: asking for an unsupported level is rejected by the CLI, so
  * it is worth catching before spawning.
  *
@@ -59,12 +63,14 @@ export const REASONING_EFFORTS = {
  * the authority for names this server does not track.
  */
 export const MODEL_REASONING_EFFORTS: Record<string, readonly string[]> = {
+  [MODELS.GPT6_1_SOL]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT6_ASTRA]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  [MODELS.GPT6_SOL]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  [MODELS.GPT6_LUNA]: ['low', 'medium', 'high', 'xhigh', 'max'],
   [MODELS.GPT5_6_SOL]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT5_6_TERRA]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT5_6_LUNA]: ['low', 'medium', 'high', 'xhigh', 'max'],
   [MODELS.GPT5_5]: ['low', 'medium', 'high', 'xhigh'],
-  [MODELS.GPT5_4_MINI]: ['low', 'medium', 'high', 'xhigh'],
 };
 
 // Personality modes (Codex CLI v0.94.0+)
