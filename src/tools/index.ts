@@ -11,6 +11,7 @@ import { listSessionsTool } from './list-sessions.tool.js';
 import { healthTool } from './health.tool.js';
 import { listSkillsTool } from './list-skills.tool.js';
 import { doActTool } from './do-act.tool.js';
+import { imageGenTool } from './image-gen.tool.js';
 
 toolRegistry.push(
   askCodexTool,
@@ -25,7 +26,8 @@ toolRegistry.push(
   listSessionsTool,
   healthTool,
   listSkillsTool,
-  doActTool
+  doActTool,
+  imageGenTool
 );
 
 export * from './registry.js';

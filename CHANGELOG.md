@@ -10,6 +10,10 @@
 
 - `gpt-5.4-mini` (`MODELS.GPT5_4_MINI`): withdrawn upstream; now returns HTTP 400 "not supported when using Codex with a ChatGPT account" on both 0.157.1 and 0.159.2.
 
+### Added
+
+- **`image-gen` tool**: generates or edits images through Codex's built-in `image_gen` tool (ChatGPT login, no API key). Builds a labeled prompt spec following Codex's `imagegen` skill (use case, asset type, style, composition, lighting, palette, verbatim text, reference roles, edit invariants, aspect ratio) plus presets (`photoreal`, `portrait`, `likeness`, `product`, `thumbnail`, `no-text`, `exact-text`, `brand-style`). Locates output deterministically via the `codex exec` thread id, copies it to `outputPath` without overwriting by default, and reports PNG dimensions and alpha.
+
 ## [2.4.0] - 2026-07-13
 
 ### Added

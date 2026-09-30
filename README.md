@@ -82,6 +82,7 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 | `batch-codex`    | Run multiple atomic Codex tasks sequentially or concurrently        |
 | `review-changes` | Run the native non-interactive Codex review command                 |
 | `do-act`         | Execute, verify with a shell command, and retry fixes               |
+| `image-gen`      | Generate or edit images with Codex's built-in `image_gen` tool      |
 | `brainstorm`     | Generate ideas with structured creative frameworks                  |
 | `list-sessions`  | View, delete, or clear MCP conversation mappings                    |
 | `list-skills`    | List skills visible from the selected workspace                     |
@@ -91,6 +92,30 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 | `help`           | Return current `codex --help` output                                |
 | `version`        | Report Codex CLI, Node.js, platform, and package versions           |
 | `timeout-test`   | Exercise keepalive and timeout behavior                             |
+
+## Image generation
+
+`image-gen` drives Codex's built-in `image_gen` tool, so it uses your ChatGPT
+login and needs no `OPENAI_API_KEY`. That tool only accepts a prompt and
+reference image paths: Codex picks the image model and pixel size, and there
+are no size, quality, format or mask arguments. `image-gen` therefore puts all
+steering into a structured prompt (use case, asset type, style, composition,
+exact text, reference roles, edit invariants, aspect ratio, presets) and tells
+the Codex host model to relay it instead of improvising.
+
+```javascript
+// New image, 16:9, exact Cyrillic headline, copied into the project
+'image-gen prompt:"YouTube cover about AI coding agents" aspect:"wide" text:"АГЕНТИ БЕЗ ХАОСУ" presets:["thumbnail","exact-text"] outputPath:"assets/cover.png"';
+
+// Edit: change only the headline, keep everything else
+'image-gen editImage:"assets/cover.png" prompt:"Replace the headline text" text:"ЧАСТИНА 2" preserve:["people and background"] outputPath:"assets/cover.png"';
+```
+
+Images are saved by Codex under `$CODEX_HOME/generated_images/<thread>/` and
+copied to `outputPath` when given; an existing file is kept and the copy is
+written as a `-v2` sibling unless `overwrite: true`. The result reports each
+file's dimensions and alpha channel, so a `transparentBackground` request that
+came back opaque is flagged.
 
 ## Models
 
