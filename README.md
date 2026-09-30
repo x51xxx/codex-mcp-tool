@@ -242,6 +242,10 @@ Use `health` tool for diagnostics: `'use health verbose:true'`
 
 ## Migration
 
+**v2.5.x → v2.6.0:** Codex CLI `0.159.2` model sync and a new `image-gen` tool.
+Added `gpt-6.1-sol` (needs Codex CLI 0.159+), `gpt-6-sol` and `gpt-6-luna`.
+**Breaking:** dropped `gpt-5.4-mini`, which now returns HTTP 400.
+
 **v2.4.x → v2.5.0:** Codex CLI `0.153.4` compatibility pass; added
 `gpt-6-astra`. **Breaking:** dropped `gpt-5.4` and the moving alias `gpt-5.6`
 (both now rejected with HTTP 400), and removed the `untrusted` approval policy,
