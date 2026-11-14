@@ -27,12 +27,12 @@ export async function processChangeModeOutput(
   // Validate chunk index
   if (chunkIndex !== undefined) {
     if (!Number.isInteger(chunkIndex) || chunkIndex < 1) {
-      return `Invalid chunk index: ${chunkIndex}. Must be a positive integer starting from 1.`;
+      return `❌ Invalid chunk index: ${chunkIndex}. Must be a positive integer starting from 1.`;
     }
 
     if (chunkIndex > 1 && !chunkCacheKey) {
       return (
-        `Chunk index ${chunkIndex} requested but no cache key provided. ` +
+        `❌ Chunk index ${chunkIndex} requested but no cache key provided. ` +
         `Please use the cache key from the initial response or start with chunk 1.`
       );
     }
@@ -42,11 +42,11 @@ export async function processChangeModeOutput(
     try {
       const cachedChunks = getChunks(chunkCacheKey);
       if (!cachedChunks || cachedChunks.length === 0) {
-        return `Cache key '${chunkCacheKey}' not found or expired. Please regenerate the response.`;
+        return `❌ Cache key '${chunkCacheKey}' not found or expired. Please regenerate the response.`;
       }
 
       if (chunkIndex > cachedChunks.length) {
-        return `Chunk index ${chunkIndex} out of range. Available chunks: 1-${cachedChunks.length}`;
+        return `❌ Chunk index ${chunkIndex} out of range. Available chunks: 1-${cachedChunks.length}`;
       }
 
       Logger.debug(`Using cached chunk ${chunkIndex} of ${cachedChunks.length}`);
@@ -66,7 +66,7 @@ export async function processChangeModeOutput(
       return result;
     } catch (error) {
       Logger.error('Error retrieving cached chunks:', error);
-      return `Failed to retrieve cached chunks: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      return `❌ Failed to retrieve cached chunks: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
   }
 
@@ -80,7 +80,7 @@ export async function processChangeModeOutput(
     Logger.error('Failed to parse change mode output:', error);
     const snippet = normalizedResult.substring(0, 500);
     return (
-      `Failed to parse change mode output: ${error instanceof Error ? error.message : 'Unknown error'}\n\n` +
+      `❌ Failed to parse change mode output: ${error instanceof Error ? error.message : 'Unknown error'}\n\n` +
       `First 500 chars of output:\n${snippet}...`
     );
   }
@@ -88,7 +88,7 @@ export async function processChangeModeOutput(
   if (edits.length === 0) {
     // Log first part of raw result for debugging (without exposing full content)
     Logger.debug(`No edits found. First 200 chars: ${normalizedResult.substring(0, 200)}`);
-    return `No edits found in response. Ensure the OLD/NEW format is used.\n\n+ ${normalizedResult}`;
+    return `No edits found in response. Ensure the OLD/NEW format is used.\n\n${normalizedResult}`;
   }
 
   // Validate edits with auto-repair

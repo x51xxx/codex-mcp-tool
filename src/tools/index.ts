@@ -22,12 +22,17 @@ toolRegistry.push(
   versionTool,
   brainstormTool,
   fetchChunkTool,
-  timeoutTestTool,
   listSessionsTool,
   healthTool,
   listSkillsTool,
   doActTool,
   imageGenTool
 );
+
+// Diagnostic tool for exercising progress/keepalive handling; not useful to
+// end users, so it is only exposed on request.
+if (process.env['CODEX_MCP_TEST_TOOLS'] === '1') {
+  toolRegistry.push(timeoutTestTool);
+}
 
 export * from './registry.js';

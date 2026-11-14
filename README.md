@@ -11,17 +11,23 @@
 
 MCP server connecting Claude/Cursor to Codex CLI. Enables code analysis via `@` file references, multi-turn conversations, sandboxed edits, and structured change mode.
 
+The [project page on trishchuk.com](https://trishchuk.com/projects/codex-mcp-tool/) gives an overview of the server: setup, the tool reference, model recommendations and Codex CLI compatibility notes. It also links to a case study on using this server as an outside advisor to Claude Code.
+
 ## Features
 
 - **File Analysis** — Reference files with `@src/`, `@package.json` syntax
-- **Multi-Turn Sessions** — Conversation continuity with workspace isolation
-- **Native Resume** — Uses `codex resume` for context preservation (CLI v0.36.0+)
+- **Multi-Turn Sessions** — Conversation continuity, isolated per working directory
+- **Native Resume** — Uses `codex exec resume` and keeps the session's model
+- **Code Review** — Native `codex review` in a read-only sandbox
+- **Act-Check-Fix** — `do-act` runs a task, verifies it with a shell command, and retries in the same conversation
+- **Image Generation** — Codex's built-in `image_gen` with a structured prompt spec
 - **Local OSS Models** — Run with Ollama or LM Studio via `localProvider`
 - **Web Search** — Research capabilities with `search: true`
 - **Sandbox Mode** — Safe automation with explicit sandbox and approval policies
 - **Change Mode** — Structured OLD/NEW patch output for refactoring
 - **Brainstorming** — SCAMPER, design-thinking, lateral thinking frameworks
-- **Health Diagnostics** — CLI version, features, and session monitoring
+- **Cancellation** — Cancelling a tool call stops the Codex process
+- **Health Diagnostics** — CLI path, version, authentication, and sessions
 - **Cross-Platform** — Windows, macOS, Linux fully supported
 
 ## Quick Start
@@ -55,11 +61,17 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 'analyze @package.json and list dependencies';
 
 // With specific model
-'use codex with model gpt-5.6-sol to analyze @algorithm.py';
+'use codex with model gpt-6-astra to analyze @algorithm.py';
 
 // Multi-turn conversations (v1.4.0+)
 'ask codex sessionId:"my-project" prompt:"explain @src/"';
 'ask codex sessionId:"my-project" prompt:"now add error handling"';
+
+// Code review of the working tree
+'review-changes uncommitted:true';
+
+// Do the task, verify with tests, retry on failure
+'do-act task:"fix the failing date parser" verify:{command:"npm test"}';
 
 // Brainstorming
 'brainstorm ways to optimize CI/CD using SCAMPER method';
@@ -76,22 +88,22 @@ claude mcp add codex-cli -- npx -y @trishchuk/codex-mcp-tool
 
 ## Tools
 
-| Tool             | Description                                                         |
-| ---------------- | ------------------------------------------------------------------- |
-| `ask-codex`      | Execute Codex CLI with files, models, sessions, and safety controls |
-| `batch-codex`    | Run multiple atomic Codex tasks sequentially or concurrently        |
-| `review-changes` | Run the native non-interactive Codex review command                 |
-| `do-act`         | Execute, verify with a shell command, and retry fixes               |
-| `image-gen`      | Generate or edit images with Codex's built-in `image_gen` tool      |
-| `brainstorm`     | Generate ideas with structured creative frameworks                  |
-| `list-sessions`  | View, delete, or clear MCP conversation mappings                    |
-| `list-skills`    | List skills visible from the selected workspace                     |
-| `health`         | Diagnose CLI installation, version, features, and sessions          |
-| `fetch-chunk`    | Retrieve a chunk from cached change-mode output                     |
-| `ping`           | Test the MCP connection                                             |
-| `help`           | Return current `codex --help` output                                |
-| `version`        | Report Codex CLI, Node.js, platform, and package versions           |
-| `timeout-test`   | Exercise keepalive and timeout behavior                             |
+| Tool             | Description                                                                  |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `ask-codex`      | Execute Codex CLI with files, models, sessions, and safety controls          |
+| `batch-codex`    | Run multiple atomic Codex tasks sequentially or concurrently                 |
+| `review-changes` | Run the native Codex review (`codex review`) in a read-only sandbox          |
+| `do-act`         | Execute, verify with a shell command, and retry fixes                        |
+| `image-gen`      | Generate or edit images with Codex's built-in `image_gen` tool               |
+| `brainstorm`     | Generate ideas with structured creative frameworks                           |
+| `list-sessions`  | View, delete, or clear MCP conversation mappings                             |
+| `list-skills`    | List project (`.agents/skills`, `.codex/skills`) and user skills             |
+| `health`         | Diagnose CLI path, version, authentication, and sessions                     |
+| `fetch-chunk`    | Retrieve a chunk from cached change-mode output                              |
+| `ping`           | Test the MCP connection                                                      |
+| `help`           | Return current `codex --help` output                                         |
+| `version`        | Report Codex CLI, Node.js, platform, and package versions                    |
+| `timeout-test`   | Exercise keepalive and timeout behavior (only with `CODEX_MCP_TEST_TOOLS=1`) |
 
 ## Image generation
 
@@ -131,15 +143,18 @@ single call. Reasoning depth is calibrated per tool:
 | --------------- | ---------------------------------------------------------- |
 | `gpt-6.1-sol`   | Latest workhorse for coding and everyday work (CLI 0.159+) |
 | `gpt-6-astra`   | Frontier intelligence for the most demanding work          |
+| `gpt-6.1-terra` | Fast, efficient: visual reasoning, computer use, writing   |
 | `gpt-6-sol`     | Previous-generation workhorse                              |
 | `gpt-6-luna`    | Fast and affordable; easier, repeatable tasks              |
 | `gpt-5.6-sol`   | Older-generation workhorse                                 |
 | `gpt-5.6-terra` | Older balanced model for straightforward work              |
 | `gpt-5.6-luna`  | Older fast, efficient model                                |
-| `gpt-5.5`       | Legacy — Codex steers callers to `gpt-5.6-sol`             |
+
+`gpt-5.5` was retired for ChatGPT sign-in on 2026-10-14; with API-key auth it
+still runs and is passed through as an unlisted slug.
 
 Sol, Astra and Terra models expose `max` and `ultra` reasoning; Luna models top
-out at `max`, and `gpt-5.5` at `xhigh`. `ultra` may delegate work to subagents;
+out at `max`. `ultra` may delegate work to subagents;
 most tasks should remain on `medium` or `high`. Pass a concrete slug — the bare
 moving aliases `gpt-6` and `gpt-5.6` are rejected by the API. `gpt-6.1-sol` is
 rejected by Codex CLI 0.157.x with the same 400 an unknown slug gets; upgrade
@@ -147,20 +162,40 @@ with `npm install -g @openai/codex@latest`.
 
 ## Key Features
 
-### Session Management (v1.4.0+)
+### Session Management
 
-Multi-turn conversations with workspace isolation:
+Multi-turn conversations resume the native Codex thread (`codex exec resume`):
 
 ```javascript
-{ "prompt": "analyze code", "sessionId": "my-session" }
-{ "prompt": "continue from here", "sessionId": "my-session" }
+{ "prompt": "analyze code", "sessionId": "my-session", "model": "gpt-6-luna" }
+{ "prompt": "continue from here", "sessionId": "my-session" }   // still gpt-6-luna
 { "prompt": "start fresh", "sessionId": "my-session", "resetSession": true }
 ```
 
-**Environment:**
+- A session remembers its model: a follow-up without `model` stays on it
+  instead of switching to your config default.
+- Sessions are bound to their working directory. Reusing the same `sessionId`
+  in another directory starts a separate conversation there, and both stay
+  resumable; switching git branches in the same directory keeps it.
+  `list-sessions action:delete` takes an optional `workingDir` to remove just
+  one of them.
+- Sessions live in memory (`CODEX_SESSION_TTL_MS`, default 24h;
+  `CODEX_MAX_SESSIONS`, default 50) and are lost when the server restarts.
 
-- `CODEX_SESSION_TTL_MS` - Session TTL (default: 24h)
-- `CODEX_MAX_SESSIONS` - Max sessions (default: 50)
+### Working directory
+
+Codex runs in, by priority: the `workingDir` argument → `CODEX_MCP_CWD` →
+the project of the first `@path` in the prompt → `PWD`/`INIT_CWD` → the server's
+current directory. A `workingDir` that does not exist is an error — the call is
+refused rather than run (and possibly edit files) somewhere else.
+
+### Errors and cancellation
+
+Failed calls return `isError: true` with a categorized message (model, auth,
+rate limit, timeout, sandbox, network, session, cancelled). Only Codex's own
+`ERROR:` lines are classified, so an unknown model is reported as a model
+error. Cancelling a tool call from the client stops the running `codex` process;
+a run stopped by a timeout or the output limit is never returned as a result.
 
 ### Codex CLI version
 
@@ -218,29 +253,64 @@ Run with local Ollama or LM Studio instead of OpenAI:
 | `ephemeral`            | Do not persist Codex session files                |
 | `ignoreUserConfig`     | Ignore `$CODEX_HOME/config.toml`                  |
 | `ignoreRules`          | Ignore execpolicy `.rules` files                  |
+| `personality`          | `pragmatic`, `friendly`, or `none`                |
+| `profile`              | Layer `$CODEX_HOME/<name>.config.toml` (`-p`)     |
+| `timeout`              | Per-call limit in ms (positive integer)           |
+
+### Environment variables
+
+| Variable               | Purpose                                                    |
+| ---------------------- | ---------------------------------------------------------- |
+| `CODEX_CLI_PATH`       | Absolute path to `codex` (GUI clients with a minimal PATH) |
+| `CODEX_MCP_CWD`        | Working directory for every call without `workingDir`      |
+| `CODEX_SESSION_TTL_MS` | Session lifetime in ms (default 86400000 = 24h)            |
+| `CODEX_MAX_SESSIONS`   | Maximum stored sessions (default 50)                       |
+| `CODEX_MCP_TEST_TOOLS` | `1` registers the diagnostic `timeout-test` tool           |
 
 ## CLI Compatibility
 
-Validated against Codex CLI `0.144.3`. The server keeps older feature guards,
-but current releases are recommended. Notable current behavior:
+Validated against Codex CLI `0.169.0` (minimum `0.95.0`). Notable current behavior:
 
-- `--full-auto` and approval policy `on-failure` have been removed by Codex CLI.
+- `--full-auto` and the `on-failure`/`untrusted` approval policies have been
+  removed by Codex CLI.
 - MCP `sandbox: true` / `fullAuto: true` remain compatibility aliases for
   `--sandbox workspace-write --ask-for-approval never`; they do not bypass the sandbox.
+- `approvalPolicy: "on-request"` is accepted, but non-interactive `codex exec`
+  runs still report `approval: never` — nobody can answer a prompt.
+- `profile` uses profile V2 files (`$CODEX_HOME/<name>.config.toml`). Codex
+  refuses `-p <name>` while `config.toml` still has a legacy
+  `[profiles.<name>]` table, and `strictConfig` fails on such tables too.
+- Prompts are passed after `--`, so a prompt that starts with `-` (a markdown
+  list) works; prompts over 100 KB go over stdin.
 - Native `--search` is used without the deprecated `web_search_request` feature.
-- Current `exec` flags include `--strict-config`, `--ephemeral`,
-  `--ignore-user-config`, and `--ignore-rules`.
 
 ## Troubleshooting
 
 ```bash
-codex --version    # Check CLI version
-codex login        # Authenticate
+codex --version       # Check CLI version
+codex login status    # Check authentication (exit 0 = logged in)
+codex login           # Authenticate
 ```
 
 Use `health` tool for diagnostics: `'use health verbose:true'`
 
+## Development
+
+```bash
+npm run build     # compile to dist/
+npm run lint      # type-check
+npm test          # build + node --test suite (no extra dependencies)
+```
+
 ## Migration
+
+**v2.6.x → v2.7.0:** bug-fix release from the 2026-11-14 audit (see CHANGELOG).
+Added `gpt-6.1-terra`. **Breaking:** an explicit `workingDir` that does not
+exist is now an error instead of a silent fallback; `@path` references in the
+prompt now take priority over `PWD`; `gpt-5.5` is no longer listed (retired for
+ChatGPT sign-in — with API-key auth it still passes through); `timeout-test` is
+registered only with `CODEX_MCP_TEST_TOOLS=1`. Failed tool calls now return
+`isError: true`.
 
 **v2.5.x → v2.6.0:** Codex CLI `0.159.2` model sync and a new `image-gen` tool.
 Added `gpt-6.1-sol` (needs Codex CLI 0.159+), `gpt-6-sol` and `gpt-6-luna`.

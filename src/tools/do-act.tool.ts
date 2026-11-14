@@ -2,13 +2,20 @@ import { z } from 'zod';
 import { UnifiedTool, StructuredToolResult } from './registry.js';
 import { executeCodex } from '../utils/codexExecutor.js';
 import { executeCommandDetailed } from '../utils/commandExecutor.js';
+import { currentAbortSignal } from '../utils/requestContext.js';
+import { parseConversationIdFromOutput } from '../utils/sessionStorage.js';
 import { resolveWorkingDirectory } from '../utils/workingDirResolver.js';
 import { MODELS } from '../constants.js';
 
 const verifySchema = z.object({
   command: z.string().describe('Shell command to verify result (e.g., "npm test", "cargo build")'),
   exitCode: z.number().default(0).describe('Expected exit code. Default: 0'),
-  timeout: z.number().default(60000).describe('Verify timeout in ms. Default: 60s'),
+  timeout: z
+    .number()
+    .int()
+    .positive()
+    .default(60000)
+    .describe('Verify timeout in ms. Default: 60s'),
 });
 
 const doActArgsSchema = z.object({
@@ -39,7 +46,12 @@ const doActArgsSchema = z.object({
     .optional()
     .describe('Access: read-only, workspace-write, danger-full-access'),
   workingDir: z.string().optional().describe('Working directory'),
-  timeout: z.number().default(600000).describe('Codex timeout per attempt in ms. Default: 10min'),
+  timeout: z
+    .number()
+    .int()
+    .positive()
+    .default(600000)
+    .describe('Codex timeout per attempt in ms. Default: 10min'),
   reasoningEffort: z
     .enum(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'])
     .default('high')
@@ -65,13 +77,12 @@ async function runVerify(
   stderr: string;
   timedOut: boolean;
 }> {
+  // The directory goes in as the spawn cwd, not interpolated into the shell
+  // string: inside "…" the shell expands $VAR, $(…) and backticks.
   const shell = process.platform === 'win32' ? 'cmd' : '/bin/sh';
-  const shellArgs =
-    process.platform === 'win32'
-      ? ['/c', `cd ${JSON.stringify(workingDir)} && ${command}`]
-      : ['-c', `cd ${JSON.stringify(workingDir)} && ${command}`];
+  const shellArgs = process.platform === 'win32' ? ['/c', command] : ['-c', command];
 
-  const result = await executeCommandDetailed(shell, shellArgs, { timeoutMs });
+  const result = await executeCommandDetailed(shell, shellArgs, { timeoutMs, cwd: workingDir });
 
   return {
     passed: !result.timedOut && result.code === expectedExitCode,
@@ -89,9 +100,14 @@ function buildFixPrompt(
   originalTask: string,
   verify: { stdout: string; stderr: string; exitCode: number | null }
 ): string {
-  const errContext = verify.stderr
-    ? verify.stderr.substring(0, 1500)
-    : verify.stdout.substring(0, 1500);
+  // Both streams: test runners often print the failure details on stdout and
+  // only a warning on stderr, so picking one dropped the useful part.
+  const errContext = [
+    verify.stderr && `stderr:\n${verify.stderr.slice(-1500)}`,
+    verify.stdout && `stdout:\n${verify.stdout.slice(-1500)}`,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 
   return (
     `Previous attempt failed verification (exit code ${verify.exitCode}).\n\n` +
@@ -165,13 +181,26 @@ export const doActTool: UnifiedTool = {
       verifyOutput?: string;
     }> = [];
 
+    // Retries resume the same Codex conversation, so the fix attempt sees what
+    // it already tried instead of starting from scratch.
+    let codexConversationId: string | undefined;
+
     for (let i = 1; i <= totalAttempts; i++) {
+      if (currentAbortSignal()?.aborted) {
+        attempts.push({ attempt: i, codexOutput: 'Error: Request cancelled by the client' });
+        break;
+      }
       onProgress?.(`Attempt ${i}/${totalAttempts}...`);
 
       // ACT
       let codexOutput: string;
       try {
-        const result = await executeCodex(currentPrompt, codexOpts, onProgress);
+        const result = await executeCodex(
+          currentPrompt,
+          { ...codexOpts, codexConversationId },
+          onProgress
+        );
+        codexConversationId = parseConversationIdFromOutput(result.stderr) ?? codexConversationId;
         codexOutput = result.output.trim() || result.stderr.trim() || result.output;
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
@@ -243,8 +272,9 @@ export const doActTool: UnifiedTool = {
       : `Task failed after ${attempts.length} attempt(s) (${Math.round(durationMs / 1000)}s)`;
 
     return {
-      text: `${summary}\n\n${JSON.stringify(result, null, 2)}`,
+      text: `${passed ? '' : '❌ '}${summary}\n\n${JSON.stringify(result, null, 2)}`,
       structuredContent: result,
+      isError: !passed,
     } as StructuredToolResult;
   },
 };

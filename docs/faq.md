@@ -12,10 +12,11 @@ Available models:
 
 - **gpt-6.1-sol** - Latest workhorse for coding and everyday work (Codex CLI 0.159+)
 - **gpt-6-astra** - Frontier intelligence for the most demanding work
+- **gpt-6.1-terra** - Fast, efficient: visual reasoning, computer use, writing
 - **gpt-6-sol** - Previous-generation workhorse
 - **gpt-6-luna** - Fast and affordable; easier, repeatable tasks
 - **gpt-5.6-sol** / **gpt-5.6-terra** / **gpt-5.6-luna** - Older generation, still available
-- **gpt-5.5** - Legacy; Codex steers callers to `gpt-5.6-sol`
+- **gpt-5.5** - Retired for ChatGPT sign-in (2026-10-14); API-key auth only
 
 Use a concrete slug: the bare moving aliases `gpt-6` and `gpt-5.6` are rejected
 with an HTTP 400.

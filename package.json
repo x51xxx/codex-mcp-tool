@@ -1,6 +1,6 @@
 {
   "name": "@trishchuk/codex-mcp-tool",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "mcpName": "io.github.x51xxx/codex-mcp-tool",
   "description": "MCP server for Codex CLI integration",
   "type": "module",
@@ -12,11 +12,11 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsc && node dist/index.js",
-    "test": "echo \"No tests yet\" && exit 0",
+    "test": "npm run build && node scripts/run-tests.mjs",
     "lint": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,js,json,md}\" \"docs/**/*.{md,json}\" \"*.{md,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,json,md}\" \"docs/**/*.{md,json}\" \"*.{md,json}\"",
-    "prepublishOnly": "echo '⚠️  Remember to test locally first!' && npm run build",
+    "prepublishOnly": "npm run lint && npm test",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
@@ -52,12 +52,13 @@
   "bugs": {
     "url": "https://github.com/x51xxx/codex-mcp-tool/issues"
   },
-  "homepage": "https://github.com/x51xxx/codex-mcp-tool#readme",
+  "homepage": "https://trishchuk.com/projects/codex-mcp-tool/",
   "engines": {
     "node": ">=18.0.0"
   },
   "files": [
     "dist/",
+    "!dist/**/*.test.*",
     "server.json",
     "README.md",
     "LICENSE"

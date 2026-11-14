@@ -1,4 +1,9 @@
-import { executeCommandDetailed, RetryOptions } from './commandExecutor.js';
+import {
+  executeCommandDetailed,
+  RetryOptions,
+  CommandResult,
+  describeFailure,
+} from './commandExecutor.js';
 import { Logger } from './logger.js';
 import { CLI } from '../constants.js';
 import { CodexCommandBuilder } from './codexCommandBuilder.js';
@@ -56,7 +61,7 @@ export interface CodexExecOptions {
   readonly changeMode?: boolean; // Prepend format instructions for structured OLD/NEW edits
   // New parameters (v2.0.0)
   readonly outputSchema?: string | Record<string, any>; // JSON Schema path or inline schema
-  readonly personality?: 'pragmatic' | 'friendly'; // Communication style
+  readonly personality?: 'pragmatic' | 'friendly' | 'none'; // Communication style
   readonly skipGitRepoCheck?: boolean; // Skip git repo validation
   readonly outputLastMessage?: string; // Write final message to file path
   readonly strictConfig?: boolean; // Fail on unknown config.toml fields
@@ -64,6 +69,49 @@ export interface CodexExecOptions {
   readonly ignoreUserConfig?: boolean; // Ignore $CODEX_HOME/config.toml
   readonly ignoreRules?: boolean; // Ignore user/project execpolicy rules
   readonly bypassHookTrust?: boolean; // Dangerous: bypass persisted hook trust
+}
+
+const DEFAULT_CODEX_TIMEOUT_MS = 600000;
+
+/**
+ * Pull the actual error out of Codex's stderr.
+ *
+ * stderr carries the whole run transcript — a banner with `sandbox: read-only`
+ * and `session id: <uuid>`, config warnings, often the prompt itself — so
+ * matching keywords against all of it misclassifies errors (an unknown model
+ * came back as "Permission denied" because of the banner). Codex prefixes real
+ * failures with `ERROR:`; fall back to the last few lines otherwise.
+ */
+export function extractCodexDiagnostic(stderr: string): string {
+  const lines = stderr.split(/\r?\n/).map(line => line.trim());
+  const errorLines = [...new Set(lines.filter(line => /^error\b:?/i.test(line)))];
+  if (errorLines.length) return errorLines.join('\n');
+  // Without ERROR: lines, use the tail minus the run banner, whose
+  // `sandbox:` / `session id:` lines would mislead classification.
+  const banner =
+    /^(?:openai codex v|-{4,}$|workdir:|model:|provider:|approval:|sandbox:|reasoning effort:|reasoning summaries:|session id:)/i;
+  const tail = lines
+    .filter(line => line && !banner.test(line))
+    .slice(-15)
+    .join('\n');
+  return tail || 'Unknown error';
+}
+
+/**
+ * Build the error for a failed Codex run. Pre-flight diagnostics (unresolved
+ * binary, bad working directory) are already specific, so they pass verbatim.
+ */
+function codexFailure(result: CommandResult, timeoutMs: number): Error {
+  const stderr = result.stderr || '';
+  if (stderr.startsWith("'codex' was not found") || stderr.startsWith('Working directory')) {
+    return new Error(stderr);
+  }
+  if (result.aborted || result.timedOut || result.outputExceeded) {
+    return new Error(describeFailure(result, timeoutMs).replace(/^Command/, 'Codex CLI'));
+  }
+  return new Error(
+    `Codex CLI failed with exit code ${result.code}: ${extractCodexDiagnostic(stderr)}`
+  );
 }
 
 /**
@@ -82,29 +130,21 @@ export async function executeCodexCLI(
   });
 
   try {
-    // Use detailed execution for better error handling
+    const timeoutMs = options?.timeoutMs || options?.timeout || DEFAULT_CODEX_TIMEOUT_MS;
     const result = await executeCommandDetailed(CLI.COMMANDS.CODEX, args, {
       onProgress,
-      timeoutMs: options?.timeoutMs,
+      timeoutMs,
       maxOutputBytes: options?.maxOutputBytes,
       retry: options?.retry,
       cwd: workingDir,
       stdinInput,
     });
 
+    // A run we stopped (timeout, overflow, cancel) is an error even when it
+    // produced a lot of output: returning the partial transcript as the answer
+    // is the timeout-as-success bug in another form.
     if (!result.ok) {
-      // Try to salvage partial output if available
-      if (result.partialStdout && result.partialStdout.length > 1000) {
-        Logger.warn('Command failed but partial output available, attempting to use it');
-        return result.partialStdout;
-      }
-
-      const errorMessage = result.stderr || 'Unknown error';
-      throw new Error(
-        result.timedOut
-          ? `Codex CLI timed out after ${options?.timeoutMs || 600000}ms`
-          : `Codex CLI failed with exit code ${result.code}: ${errorMessage}`
-      );
+      throw codexFailure(result, timeoutMs);
     }
 
     return result.stdout;
@@ -137,7 +177,7 @@ export async function executeCodex(
   });
 
   try {
-    const timeoutMs = options?.timeout || options?.timeoutMs || 600000; // 10 minutes default
+    const timeoutMs = options?.timeout || options?.timeoutMs || DEFAULT_CODEX_TIMEOUT_MS;
 
     const result = await executeCommandDetailed(CLI.COMMANDS.CODEX, args, {
       onProgress,
@@ -149,38 +189,10 @@ export async function executeCodex(
     });
 
     if (!result.ok) {
-      // Enhanced error handling with specific messages
-      const errorMessage = result.stderr || 'Unknown error';
-
-      // Pre-flight diagnostics (unresolved binary, bad working directory) are
-      // already specific and actionable — surface them verbatim instead of
-      // collapsing them into the generic "not installed" message below.
-      if (
-        errorMessage.startsWith("'codex' was not found") ||
-        errorMessage.startsWith('Working directory')
-      ) {
-        throw new Error(errorMessage);
-      }
-
-      if (errorMessage.includes('command not found')) {
-        throw new Error('Codex CLI not found. Install with: npm install -g @openai/codex');
-      }
-
-      if (errorMessage.includes('authentication') || errorMessage.includes('unauthorized')) {
-        throw new Error('Authentication failed. Run "codex login" or set OPENAI_API_KEY');
-      }
-
-      if (errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
-        throw new Error('Rate limit exceeded. Please wait and try again');
-      }
-
-      if (errorMessage.includes('permission') || errorMessage.includes('sandbox')) {
-        throw new Error(
-          `Permission denied. Try adjusting sandbox mode or approval policy: ${errorMessage}`
-        );
-      }
-
-      throw new Error(`Codex CLI failed: ${errorMessage}`);
+      // Classification (auth, rate limit, model, sandbox…) happens in
+      // errorTypes.classifyError on this message, which now holds only the
+      // real error lines instead of the whole transcript.
+      throw codexFailure(result, timeoutMs);
     }
 
     // Return both stdout and stderr for conversation ID parsing

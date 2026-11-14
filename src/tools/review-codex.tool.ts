@@ -5,6 +5,8 @@ import { MODELS, CLI } from '../constants.js';
 import { Logger } from '../utils/logger.js';
 import { resolveWorkingDirectory } from '../utils/workingDirResolver.js';
 import { isValidModel, assertReasoningEffortSupported } from '../utils/modelDetection.js';
+import { extractCodexDiagnostic } from '../utils/codexExecutor.js';
+import { InvalidArgumentError } from '../utils/errorTypes.js';
 
 const reviewCodexArgsSchema = z.object({
   prompt: z
@@ -41,7 +43,12 @@ const reviewCodexArgsSchema = z.object({
     .string()
     .optional()
     .describe('Working directory to run the review in (passed via -C as a global Codex option)'),
-  timeout: z.number().optional().describe('Maximum execution time in milliseconds'),
+  timeout: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum execution time in milliseconds'),
 });
 
 export const reviewCodexTool: UnifiedTool = {
@@ -77,6 +84,17 @@ export const reviewCodexTool: UnifiedTool = {
       return '❌ **Error**: The review prompt cannot be combined with uncommitted=true. Use a base/commit review or omit the prompt.';
     }
 
+    // A value starting with '-' would be read as an option by Codex (and by
+    // the git commands it runs for the review).
+    for (const [name, value] of [
+      ['base', base],
+      ['commit', commit],
+    ] as const) {
+      if (typeof value === 'string' && value.startsWith('-')) {
+        return `❌ **Error**: \`${name}\` must be a branch name or commit SHA, not an option: ${value}`;
+      }
+    }
+
     try {
       if (onProgress) {
         onProgress('Starting code review...');
@@ -91,13 +109,18 @@ export const reviewCodexTool: UnifiedTool = {
         cmdArgs.push(CLI.FLAGS.WORKING_DIR, resolvedDir);
       }
 
+      // The tool is advertised as read-only; pin the sandbox instead of
+      // inheriting whatever sandbox_mode the user's config.toml sets.
+      cmdArgs.push(CLI.FLAGS.SANDBOX_MODE, 'read-only');
+
       // Model selection via config. When omitted, defer to Codex CLI config/default.
       const selectedModel = model as string | undefined;
       if (selectedModel) {
         if (!isValidModel(selectedModel)) {
           Logger.warn(`Model '${selectedModel}' not in known list — passing through to Codex CLI`);
         }
-        cmdArgs.push(CLI.FLAGS.CONFIG, `model="${selectedModel}"`);
+        // JSON string syntax is a valid TOML basic string, quotes escaped.
+        cmdArgs.push(CLI.FLAGS.CONFIG, `model=${JSON.stringify(selectedModel)}`);
       }
 
       // Reasoning effort (defaults to 'high' via zod schema — code review benefits from depth)
@@ -136,9 +159,10 @@ export const reviewCodexTool: UnifiedTool = {
         cmdArgs.push('--title', title as string);
       }
 
-      // Custom review instructions (positional arg after flags)
+      // Custom review instructions (positional arg after flags). `--` keeps a
+      // prompt that starts with '-' from being parsed as an option.
       if (prompt) {
-        cmdArgs.push(prompt as string);
+        cmdArgs.push('--', prompt as string);
       }
 
       if (onProgress) {
@@ -157,30 +181,44 @@ export const reviewCodexTool: UnifiedTool = {
       // Codex CLI may output to stderr, so check both
       const response = result.stdout || result.stderr || 'No review output from Codex';
 
-      if (!result.ok && !response) {
-        throw new Error(result.stderr || 'Codex review command failed');
+      if (result.aborted) {
+        return '❌ **Review Cancelled** by the client.';
       }
 
       // A killed-by-timeout run may still have a large partial transcript —
       // that is not a completed review, so it must not be presented as one.
       if (result.timedOut) {
-        return (
-          `⏱️ **Review Timed Out** after ${(timeout as number) || 600000}ms before Codex finished. ` +
-          `Retry with a larger \`timeout\`, or a lower \`reasoningEffort\`.\n\n` +
-          `<details><summary>Partial transcript</summary>\n\n${response}\n\n</details>`
-        );
+        return {
+          text:
+            `⏱️ **Review Timed Out** after ${(timeout as number) || 600000}ms before Codex finished. ` +
+            `Retry with a larger \`timeout\`, or a lower \`reasoningEffort\`.\n\n` +
+            `<details><summary>Partial transcript</summary>\n\n${response}\n\n</details>`,
+          isError: true,
+        };
       }
 
-      // A failed run that produced no stdout is an error, not a review — do not
-      // dress the diagnostic up as review output.
-      if (!result.ok && !result.stdout) {
-        return `❌ **Review Failed**: ${result.stderr}`;
+      // Any failed run is an error, not a review — even if it printed some
+      // stdout before failing. Show the real error lines from stderr.
+      if (!result.ok) {
+        const reason = result.outputExceeded
+          ? 'Codex output exceeded the size limit and was stopped.'
+          : extractCodexDiagnostic(result.stderr);
+        return (
+          `❌ **Review Failed** (exit ${result.code}): ${reason}` +
+          (result.stdout
+            ? `\n\n<details><summary>Partial output</summary>\n\n${result.stdout}\n\n</details>`
+            : '')
+        );
       }
 
       return `## Code Review Results\n\n**Model:** ${selectedModel ?? 'Codex CLI default'}\n${base ? `**Base:** ${base}\n` : ''}${commit ? `**Commit:** ${commit}\n` : ''}\n${response}`;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       Logger.error('Review failed:', error);
+
+      if (error instanceof InvalidArgumentError) {
+        return `❌ **Invalid Arguments**: ${errorMessage}`;
+      }
 
       // Pre-flight diagnostics already name the real cause; keep them intact.
       if (

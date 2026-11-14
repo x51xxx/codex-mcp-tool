@@ -128,6 +128,8 @@ const imageGenArgsSchema = z.object({
   workingDir: z.string().optional().describe('Working directory for relative paths'),
   timeout: z
     .number()
+    .int()
+    .positive()
     .default(600000)
     .describe('Timeout in ms. Default 10 min; each image takes roughly 30-90s.'),
 });
@@ -151,11 +153,14 @@ function resolveInputImage(p: string, baseDir: string, label: string): string {
 function readPngInfo(file: string): { width: number; height: number; hasAlpha: boolean } | null {
   const buf = Buffer.alloc(26);
   const fd = openSync(file, 'r');
+  let bytesRead: number;
   try {
-    readSync(fd, buf, 0, 26, 0);
+    bytesRead = readSync(fd, buf, 0, 26, 0);
   } finally {
     closeSync(fd);
   }
+  // A truncated file would otherwise be parsed from zero-filled bytes.
+  if (bytesRead < 26) return null;
   if (buf.toString('latin1', 1, 4) !== 'PNG' || buf.toString('latin1', 12, 16) !== 'IHDR') {
     return null;
   }
@@ -168,9 +173,12 @@ function readPngInfo(file: string): { width: number; height: number; hasAlpha: b
   };
 }
 
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
+
 function listImages(dir: string, since = 0): string[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
+    .filter(name => IMAGE_EXTENSIONS.has(extname(name).toLowerCase())) // skip .DS_Store etc.
     .map(name => join(dir, name))
     .filter(f => statSync(f).isFile() && statSync(f).mtimeMs >= since)
     .sort((a, b) => statSync(a).mtimeMs - statSync(b).mtimeMs);
@@ -215,8 +223,13 @@ function destinationFor(
   index: number,
   total: number
 ): string {
-  const isDir = outputPath.endsWith('/') || outputPath.endsWith('\\');
   const abs = isAbsolute(outputPath) ? outputPath : resolve(baseDir, outputPath);
+  // An existing directory counts as one even without a trailing slash;
+  // otherwise "./out" became the file "./out.png" next to the directory.
+  const isDir =
+    outputPath.endsWith('/') ||
+    outputPath.endsWith('\\') ||
+    (existsSync(abs) && statSync(abs).isDirectory());
   if (isDir) return join(abs, basename(source));
   const srcExt = extname(source);
   let target = extname(abs) ? abs : `${abs}${srcExt}`;
@@ -312,7 +325,8 @@ export const imageGenTool: UnifiedTool = {
         onProgress
       );
       hostReply = result.output.trim();
-      threadId = parseConversationIdFromOutput(`${result.stderr}\n${result.output}`);
+      // Thread id only from the stderr banner; stdout is the model's reply.
+      threadId = parseConversationIdFromOutput(result.stderr);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
       Logger.error('image-gen: Codex run failed:', error);
@@ -364,7 +378,7 @@ export const imageGenTool: UnifiedTool = {
 
     const lines = [
       status === 'failed'
-        ? `Image generation failed${error ? `: ${error}` : '.'}`
+        ? `❌ Image generation failed${error ? `: ${error}` : '.'}`
         : `Generated ${images.length}/${a.variants} image(s) in ${Math.round(durationMs / 1000)}s:`,
       ...images.map(
         img =>
@@ -376,6 +390,10 @@ export const imageGenTool: UnifiedTool = {
       spec,
     ];
 
-    return { text: lines.join('\n'), structuredContent: structured } as StructuredToolResult;
+    return {
+      text: lines.join('\n'),
+      structuredContent: structured,
+      isError: status === 'failed',
+    } as StructuredToolResult;
   },
 };

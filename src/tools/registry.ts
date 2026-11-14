@@ -6,7 +6,9 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export interface StructuredToolResult {
   text: string;
-  structuredContent: Record<string, unknown>;
+  structuredContent?: Record<string, unknown>;
+  /** Marks the result as a failure; otherwise inferred from a leading ❌. */
+  isError?: boolean;
 }
 
 export type ToolExecuteResult = string | StructuredToolResult;
@@ -104,7 +106,7 @@ export async function executeTool(
   }
   try {
     const validatedArgs = tool.zodSchema.parse(args);
-    return tool.execute(validatedArgs, onProgress);
+    return await tool.execute(validatedArgs, onProgress);
   } catch (error) {
     if (error instanceof ZodError) {
       const issues = error.issues

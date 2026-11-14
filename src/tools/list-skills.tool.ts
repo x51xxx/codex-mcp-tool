@@ -4,6 +4,7 @@ import { resolveWorkingDirectory } from '../utils/workingDirResolver.js';
 import { Logger } from '../utils/logger.js';
 import { readdirSync, readFileSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 
 const listSkillsArgsSchema = z.object({
   workingDir: z
@@ -16,82 +17,126 @@ interface SkillInfo {
   name: string;
   description: string;
   path: string;
+  scope: 'project' | 'user';
 }
 
 /**
- * Discover skills from .agents/skills/ directory
+ * Directories Codex loads skills from: the project's `.agents/skills` and
+ * `.codex/skills`, then the user's `$CODEX_HOME/skills` and `~/.agents/skills`.
+ * Only the first was scanned before, so user-level skills never showed up.
  */
-function discoverSkills(baseDir: string): SkillInfo[] {
-  const skillsDir = join(baseDir, '.agents', 'skills');
+function skillRoots(baseDir: string): Array<{ dir: string; scope: SkillInfo['scope'] }> {
+  const codexHome = process.env['CODEX_HOME'] || join(homedir(), '.codex');
+  return [
+    { dir: join(baseDir, '.agents', 'skills'), scope: 'project' },
+    { dir: join(baseDir, '.codex', 'skills'), scope: 'project' },
+    { dir: join(codexHome, 'skills'), scope: 'user' },
+    { dir: join(homedir(), '.agents', 'skills'), scope: 'user' },
+  ];
+}
 
-  if (!existsSync(skillsDir) || !statSync(skillsDir).isDirectory()) {
-    return [];
+/**
+ * Description from a SKILL.md: the `description:` field of its YAML
+ * frontmatter, else the first non-heading line after the frontmatter.
+ */
+export function extractSkillDescription(content: string): string | undefined {
+  const lines = content.split(/\r?\n/);
+  let i = 0;
+  if (lines[0]?.trim() === '---') {
+    for (i = 1; i < lines.length && lines[i].trim() !== '---'; i++) {
+      const match = lines[i].match(/^description:\s*(.*)$/);
+      if (match) {
+        const value = match[1].trim().replace(/^(['"])(.*)\1$/, '$2');
+        if (value && value !== '|' && value !== '>') return value;
+        // Block scalar: take the indented lines that follow.
+        const block: string[] = [];
+        for (let j = i + 1; j < lines.length && /^\s+\S/.test(lines[j]); j++) {
+          block.push(lines[j].trim());
+        }
+        if (block.length) return block.join(' ');
+      }
+    }
+    i++; // skip the closing ---
   }
+  for (; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed && !trimmed.startsWith('#')) return trimmed;
+  }
+  return undefined;
+}
 
+function discoverSkills(baseDir: string): SkillInfo[] {
   const skills: SkillInfo[] = [];
+  const seen = new Set<string>();
 
-  try {
-    const entries = readdirSync(skillsDir);
+  for (const { dir, scope } of skillRoots(baseDir)) {
+    if (!existsSync(dir) || !statSync(dir).isDirectory()) continue;
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch (err) {
+      Logger.warn(`Failed to read skills directory ${dir}: ${err}`);
+      continue;
+    }
 
     for (const entry of entries) {
-      const skillPath = join(skillsDir, entry);
-      if (!statSync(skillPath).isDirectory()) continue;
+      // A project skill shadows a user skill of the same name.
+      if (entry.startsWith('.') || seen.has(entry)) continue;
+      const skillPath = join(dir, entry);
+      try {
+        if (!statSync(skillPath).isDirectory()) continue;
+      } catch {
+        continue; // dangling symlink
+      }
 
       const skillMdPath = join(skillPath, 'SKILL.md');
       let description = 'No description available';
-
       if (existsSync(skillMdPath)) {
         try {
-          const content = readFileSync(skillMdPath, 'utf8');
-          // Extract first non-empty, non-heading line as description
-          const lines = content.split('\n');
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed && !trimmed.startsWith('#')) {
-              description = trimmed;
-              break;
-            }
-          }
+          description = extractSkillDescription(readFileSync(skillMdPath, 'utf8')) ?? description;
         } catch (err) {
           Logger.warn(`Failed to read ${skillMdPath}: ${err}`);
         }
       }
 
-      skills.push({
-        name: entry,
-        description,
-        path: skillPath,
-      });
+      seen.add(entry);
+      skills.push({ name: entry, description, path: skillPath, scope });
     }
-  } catch (err) {
-    Logger.error(`Failed to read skills directory: ${err}`);
   }
 
   return skills;
+}
+
+function tableCell(text: string, max = 160): string {
+  const oneLine = text.replace(/\s+/g, ' ').replace(/\|/g, '\\|');
+  return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
 }
 
 /**
  * Format skills list for display
  */
 function formatSkillsList(skills: SkillInfo[], baseDir: string): string {
+  const searched = skillRoots(baseDir)
+    .map(r => `\`${r.dir}\``)
+    .join(', ');
   if (skills.length === 0) {
     return `## Skills Discovery
 
-No skills found in \`${baseDir}/.agents/skills/\`
+No skills found. Searched: ${searched}
 
 To create a skill, add a directory under \`.agents/skills/\` with a \`SKILL.md\` file.
 Use skills in prompts with the \`$skill-name\` syntax.`;
   }
 
   let output = `## Available Skills (${skills.length})\n\n`;
-  output += `| Skill | Description |\n`;
-  output += `|-------|-------------|\n`;
+  output += `| Skill | Scope | Description |\n`;
+  output += `|-------|-------|-------------|\n`;
 
   for (const skill of skills) {
-    output += `| \`$${skill.name}\` | ${skill.description} |\n`;
+    output += `| \`$${skill.name}\` | ${skill.scope} | ${tableCell(skill.description)} |\n`;
   }
 
-  output += `\nSkills directory: \`${baseDir}/.agents/skills/\``;
+  output += `\nSearched: ${searched}`;
   output += `\nUse skills in prompts with the \`$skill-name\` syntax.`;
 
   return output;
@@ -99,7 +144,8 @@ Use skills in prompts with the \`$skill-name\` syntax.`;
 
 export const listSkillsTool: UnifiedTool = {
   name: 'list-skills',
-  description: 'Discover available Codex skills from .agents/skills/ directory',
+  description:
+    'Discover available Codex skills: project .agents/skills and .codex/skills, plus user $CODEX_HOME/skills and ~/.agents/skills',
   zodSchema: listSkillsArgsSchema,
   annotations: {
     readOnlyHint: true,
@@ -134,7 +180,12 @@ export const listSkillsTool: UnifiedTool = {
       return {
         text,
         structuredContent: {
-          skills: skills.map(s => ({ name: s.name, description: s.description, path: s.path })),
+          skills: skills.map(s => ({
+            name: s.name,
+            description: s.description,
+            path: s.path,
+            scope: s.scope,
+          })),
           baseDir,
         },
       } as StructuredToolResult;

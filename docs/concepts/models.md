@@ -13,12 +13,13 @@ This list was verified against Codex CLI `0.159.2` and its model cache on
 | --------------- | ----------------------------------- | ------------------------------------------ |
 | `gpt-6.1-sol`   | Everyday coding and agentic work    | Latest workhorse; needs Codex CLI 0.159+   |
 | `gpt-6-astra`   | Complex, demanding, high-value work | Frontier intelligence; use when it matters |
+| `gpt-6.1-terra` | Screens, computer use, writing      | Fast, efficient; visual reasoning          |
 | `gpt-6-sol`     | Everyday work on an older CLI       | Previous-generation workhorse              |
 | `gpt-6-luna`    | Clear, repeatable, high-volume work | Fast and affordable                        |
 | `gpt-5.6-sol`   | Older-generation work               | Still available                            |
 | `gpt-5.6-terra` | Straightforward work                | Older balanced model                       |
 | `gpt-5.6-luna`  | Simple, well-scoped tasks           | Older fast, efficient model                |
-| `gpt-5.5`       | Legacy compatibility                | Codex steers callers to `gpt-5.6-sol`      |
+| `gpt-5.5`       | API-key auth only                   | Retired for ChatGPT sign-in (2026-10-14)   |
 
 Reach for Astra when the problem is hard or open-ended, use Sol as the everyday
 workhorse, and use Luna when the task is specific and success is easy to verify.

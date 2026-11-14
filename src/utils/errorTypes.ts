@@ -1,6 +1,6 @@
 /**
  * Structured Error Types for Codex MCP Tool
- * Provides typed error handling with 8 categories for better debugging and user feedback
+ * Provides typed error handling with 11 categories for better debugging and user feedback
  */
 
 /**
@@ -15,6 +15,8 @@ export enum ErrorCategory {
   SANDBOX = 'SANDBOX',
   NETWORK = 'NETWORK',
   SESSION = 'SESSION',
+  CANCELLED = 'CANCELLED',
+  INVALID_ARGUMENTS = 'INVALID_ARGUMENTS',
   UNKNOWN = 'UNKNOWN',
 }
 
@@ -53,6 +55,14 @@ export const ERROR_MESSAGES: Record<ErrorCategory, { title: string; description:
   [ErrorCategory.SESSION]: {
     title: 'Session Error',
     description: 'Session is invalid, expired, or not found.',
+  },
+  [ErrorCategory.CANCELLED]: {
+    title: 'Request Cancelled',
+    description: 'The client cancelled the request; the Codex process was stopped.',
+  },
+  [ErrorCategory.INVALID_ARGUMENTS]: {
+    title: 'Invalid Arguments',
+    description: 'The request has an invalid or conflicting argument; Codex was not started.',
   },
   [ErrorCategory.UNKNOWN]: {
     title: 'Unknown Error',
@@ -107,6 +117,11 @@ export const ERROR_SOLUTIONS: Record<ErrorCategory, string[]> = {
     'Create new session by omitting `sessionId`',
     'Use `resetSession: true` to start fresh',
   ],
+  [ErrorCategory.CANCELLED]: ['Re-run the request if the cancel was not intended'],
+  [ErrorCategory.INVALID_ARGUMENTS]: [
+    'Fix or remove the argument named in the message and retry',
+    "Check the tool's input schema for allowed values and combinations",
+  ],
   [ErrorCategory.UNKNOWN]: [
     'Check Codex CLI: `codex --version`',
     'Run `codex login` to verify authentication',
@@ -114,6 +129,21 @@ export const ERROR_SOLUTIONS: Record<ErrorCategory, string[]> = {
     'Use `health` tool to diagnose',
   ],
 };
+
+/**
+ * A request rejected by our own validation, before Codex is spawned.
+ *
+ * Thrown instead of a plain Error so it is categorised by type: matching the
+ * wording would break whenever a message is reworded, and without it these
+ * fell into UNKNOWN, whose advice ("run codex login") sends the caller after
+ * the wrong cause.
+ */
+export class InvalidArgumentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidArgumentError';
+  }
+}
 
 /**
  * Custom error class with category and structured data
@@ -190,23 +220,27 @@ export class CodexError extends Error {
  * Classify error message into category
  */
 export function classifyError(errorMessage: string): ErrorCategory {
-  const message = errorMessage.toLowerCase();
+  // Codex prefixes every failure with "ERROR:", which would satisfy the loose
+  // "error … model" pattern below for any message that mentions a model.
+  const message = errorMessage.toLowerCase().replace(/\berror:\s*/g, '');
 
-  // Model errors — checked first because model messages often contain
-  // words like "not found", "access", "sandbox" that would false-match other categories
+  // Precise causes first. The loose model pattern used to run first, so
+  // "rate limit reached for model X" became a Model Error.
+  if (message.includes('request cancelled') || message.includes('request canceled')) {
+    return ErrorCategory.CANCELLED;
+  }
+
+  // Model errors with unambiguous wording.
   if (
     message.includes('model not found') ||
     message.includes('model_not_found') ||
     message.includes('does not have access to model') ||
-    message.includes('access to model') ||
     message.includes('invalid model') ||
     message.includes('unsupported model') ||
     message.includes('model is not available') ||
     message.includes('model not available') ||
     message.includes('not supported for this model') ||
-    message.includes('does not exist') ||
-    /\bmodel\b.{0,50}\b(?:fail|error|reject|unavailable|unknown)\b/.test(message) ||
-    /\b(?:fail|error|reject|unavailable|unknown)\b.{0,50}\bmodel\b/.test(message)
+    /\bmodel\b.{0,80}\bis not supported\b/.test(message)
   ) {
     return ErrorCategory.MODEL;
   }
@@ -216,17 +250,20 @@ export function classifyError(errorMessage: string): ErrorCategory {
     message.includes('command not found') ||
     message.includes('codex: not found') ||
     message.includes('codex not found') ||
+    message.includes("'codex' was not found") ||
     message.includes('enoent')
   ) {
     return ErrorCategory.CLI_NOT_FOUND;
   }
 
-  // Authentication
+  // Authentication (401 only as a whole number — it used to match inside
+  // session UUIDs).
   if (
     message.includes('authentication') ||
     message.includes('unauthorized') ||
+    message.includes('not logged in') ||
     message.includes('api key') ||
-    message.includes('401')
+    /(?<![\w-])401(?![\w-])/.test(message)
   ) {
     return ErrorCategory.AUTHENTICATION;
   }
@@ -236,7 +273,8 @@ export function classifyError(errorMessage: string): ErrorCategory {
     message.includes('rate limit') ||
     message.includes('quota') ||
     message.includes('too many requests') ||
-    message.includes('429')
+    message.includes('usage limit') ||
+    /(?<![\w-])429(?![\w-])/.test(message)
   ) {
     return ErrorCategory.RATE_LIMIT;
   }
@@ -250,8 +288,8 @@ export function classifyError(errorMessage: string): ErrorCategory {
     return ErrorCategory.TIMEOUT;
   }
 
-  // Sandbox/Permission — use specific phrases to avoid false positives
-  // (e.g. CLI output containing "--sandbox" flag or "access" in model errors)
+  // Sandbox/Permission — specific phrases only (the stderr banner always
+  // contains "sandbox: …").
   if (
     message.includes('sandbox violation') ||
     message.includes('sandbox restriction') ||
@@ -264,20 +302,39 @@ export function classifyError(errorMessage: string): ErrorCategory {
     return ErrorCategory.SANDBOX;
   }
 
-  // Network
+  // Loose model wording, after every precise cause.
   if (
-    message.includes('network') ||
-    message.includes('connect') ||
+    message.includes('does not exist') ||
+    /\bmodel\b.{0,50}\b(?:fail|failed|reject|rejected|unavailable|unknown)\b/.test(message) ||
+    /\b(?:fail|failed|reject|rejected|unavailable|unknown)\b.{0,50}\bmodel\b/.test(message)
+  ) {
+    return ErrorCategory.MODEL;
+  }
+
+  // Network — concrete failure phrases, not any mention of "connect".
+  if (
+    message.includes('network error') ||
+    message.includes('network is unreachable') ||
+    message.includes('connection refused') ||
+    message.includes('connection reset') ||
+    message.includes('failed to connect') ||
+    message.includes('could not connect') ||
+    message.includes('error sending request') ||
     message.includes('econnrefused') ||
+    message.includes('econnreset') ||
     message.includes('enotfound')
   ) {
     return ErrorCategory.NETWORK;
   }
 
-  // Session
+  // Session — concrete phrases, not any mention of "session" or "expired".
   if (
-    message.includes('session') ||
-    message.includes('expired') ||
+    message.includes('session not found') ||
+    message.includes('no session') ||
+    message.includes('session expired') ||
+    message.includes('conversation not found') ||
+    message.includes('thread not found') ||
+    message.includes('no rollout found') ||
     message.includes('conversation id')
   ) {
     return ErrorCategory.SESSION;
@@ -294,7 +351,10 @@ export function createCodexError(
   context?: Record<string, unknown>
 ): CodexError {
   const message = error instanceof Error ? error.message : error;
-  const category = classifyError(message);
+  const category =
+    error instanceof InvalidArgumentError
+      ? ErrorCategory.INVALID_ARGUMENTS
+      : classifyError(message);
   const originalError = error instanceof Error ? error : undefined;
 
   return new CodexError(category, message, originalError, context);
@@ -341,6 +401,8 @@ export function getRetryDelay(error: CodexError | ErrorCategory, attempt: number
     [ErrorCategory.MODEL]: 0,
     [ErrorCategory.SANDBOX]: 0,
     [ErrorCategory.SESSION]: 0,
+    [ErrorCategory.CANCELLED]: 0,
+    [ErrorCategory.INVALID_ARGUMENTS]: 0,
     [ErrorCategory.UNKNOWN]: 5000,
   };
 

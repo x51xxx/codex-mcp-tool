@@ -1,4 +1,5 @@
 import { MODELS, MODEL_REASONING_EFFORTS, REASONING_EFFORTS } from '../constants.js';
+import { InvalidArgumentError } from './errorTypes.js';
 
 /**
  * Lightweight model name validation.
@@ -43,7 +44,7 @@ export function assertReasoningEffortSupported(model?: string, effort?: string):
   const supported = MODEL_REASONING_EFFORTS[model];
   if (!supported || supported.includes(effort)) return;
 
-  throw new Error(
+  throw new InvalidArgumentError(
     `Model '${model}' does not support reasoning effort '${effort}'. ` +
       `Supported for this model: ${supported.join(', ')}. ` +
       `(Highest levels — ${REASONING_EFFORTS.MAX}, ${REASONING_EFFORTS.ULTRA} — are GPT-6/GPT-5.6 options.)`

@@ -31,7 +31,11 @@ export interface CodexOutput {
  * to stderr, while stdout contains only the clean final response.
  */
 function hasInteractiveFormat(rawOutput: string): boolean {
-  return rawOutput.includes('OpenAI Codex') || rawOutput.includes('--------');
+  // Require the real banner (`OpenAI Codex v0.x` on its own line) plus a
+  // separator line. Plain substring checks fired on any answer containing a
+  // markdown rule or ASCII table ("--------") or mentioning "OpenAI Codex",
+  // and the interactive parser then dropped most of the answer as header.
+  return /^OpenAI Codex v\d/m.test(rawOutput) && /^-{8,}\s*$/m.test(rawOutput);
 }
 
 export function parseCodexOutput(rawOutput: string, rawStderr?: string): CodexOutput {

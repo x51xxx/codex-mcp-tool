@@ -169,8 +169,12 @@ export interface MinimumVersionCheck {
  * to run because it could not read a version string. A genuinely broken
  * installation surfaces through the binary resolution and spawn paths instead.
  */
-export async function checkMinimumCodexVersion(): Promise<MinimumVersionCheck> {
-  const version = await getCodexVersion();
+export async function checkMinimumCodexVersion(
+  knownVersion?: CodexVersion
+): Promise<MinimumVersionCheck> {
+  // Callers that already ran `codex --version` pass the result in; failed
+  // detections are not cached, so asking again would spawn a second process.
+  const version = knownVersion ?? (await getCodexVersion());
 
   if (!version.isValid) {
     Logger.debug('Codex CLI version could not be determined; skipping minimum version check');

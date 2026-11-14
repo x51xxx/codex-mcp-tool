@@ -6,7 +6,7 @@ import {
   MINIMUM_CODEX_VERSION_STRING,
 } from '../utils/versionDetection.js';
 import { getSessionStats, getSession } from '../utils/sessionStorage.js';
-import { executeCommand } from '../utils/commandExecutor.js';
+import { executeCommandDetailed } from '../utils/commandExecutor.js';
 import {
   resolveBinary,
   describeUnresolvedBinary,
@@ -50,12 +50,16 @@ interface HealthStatus {
  * Check if Codex CLI is authenticated
  */
 async function checkAuthentication(): Promise<boolean> {
+  // `codex login status` exits 0 only when credentials are present (ChatGPT
+  // login or API key). The previous `codex --help` check succeeded for any
+  // installed CLI, logged in or not. OPENAI_API_KEY in the environment is
+  // also enough for `codex exec`, so it counts as authenticated.
+  if (process.env['OPENAI_API_KEY']) return true;
   try {
-    // Try a simple command that requires authentication
-    const result = await executeCommand('codex', ['--help'], undefined, 5000);
-    // If we get help output, CLI is at least installed
-    // Authentication check is implicit - if API key is missing, commands will fail
-    return result.includes('codex') || result.includes('Usage');
+    const result = await executeCommandDetailed('codex', ['login', 'status'], {
+      timeoutMs: 10000,
+    });
+    return result.ok;
   } catch {
     return false;
   }
@@ -89,7 +93,7 @@ async function buildHealthStatus(sessionId?: string, verbose?: boolean): Promise
   //
   // This replaces a per-feature matrix whose thresholds all sat far below any
   // shipping CLI, so every entry reported ✅ regardless of what was installed.
-  const minimumCheck = await checkMinimumCodexVersion();
+  const minimumCheck = await checkMinimumCodexVersion(version);
   const features: Record<string, boolean> = { minimumVersionMet: minimumCheck.ok };
 
   if (!minimumCheck.ok && minimumCheck.message) {

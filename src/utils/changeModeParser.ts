@@ -9,12 +9,15 @@ export interface ChangeModeEdit {
 }
 export function parseChangeModeOutput(toolResponse: string): ChangeModeEdit[] {
   const edits: ChangeModeEdit[] = [];
+  // The closing fence must repeat the opening one exactly (CommonMark rule),
+  // so code containing ``` can be wrapped in a longer ```` fence; previously
+  // the first ``` inside NEW: ended the block and cut the edit short.
   const markdownPattern =
-    /\*\*FILE:\s*(.+?):(\d+)\*\*\s*\r?\n```[^\r\n]*\r?\nOLD:\s*\r?\n([\s\S]*?)\r?\nNEW:\s*\r?\n([\s\S]*?)\r?\n```/g;
+    /\*\*FILE:\s*(.+?):(\d+)\*\*\s*\r?\n(`{3,})[^\r\n`]*\r?\nOLD:\s*\r?\n([\s\S]*?)\r?\nNEW:\s*\r?\n([\s\S]*?)\r?\n\3[ \t]*(?=\r?\n|$)/g;
 
   let match;
   while ((match = markdownPattern.exec(toolResponse)) !== null) {
-    const [_fullMatch, filename, startLineStr, oldCodeRaw, newCodeRaw] = match;
+    const [_fullMatch, filename, startLineStr, _fence, oldCodeRaw, newCodeRaw] = match;
 
     const oldCode = oldCodeRaw.trimEnd();
     const newCode = newCodeRaw.trimEnd();

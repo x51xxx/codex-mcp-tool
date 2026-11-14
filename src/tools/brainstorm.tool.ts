@@ -114,7 +114,9 @@ const brainstormArgsSchema = z.object({
   approvalPolicy: z
     .enum(['never', 'on-request'])
     .optional()
-    .describe('Approval: never, on-request'),
+    .describe(
+      'Approval policy (-a): never, on-request. Note: non-interactive `codex exec` runs report `approval: never` even with on-request, since nobody can answer a prompt.'
+    ),
   sandboxMode: z
     .enum(['read-only', 'workspace-write', 'danger-full-access'])
     .optional()
@@ -161,10 +163,10 @@ const brainstormArgsSchema = z.object({
       'Reasoning depth. Default: high (creative ideation benefits from depth). Override with "xhigh" for very complex domains, "medium" for quick exploration.'
     ),
   personality: z
-    .enum(['pragmatic', 'friendly'])
+    .enum(['pragmatic', 'friendly', 'none'])
     .optional()
     .describe(
-      'Communication style: pragmatic (concise, machine-friendly) or friendly (conversational). Codex CLI v0.94.0+'
+      'Communication style: pragmatic (concise, machine-friendly), friendly (conversational) or none (no personality instructions)'
     ),
 });
 
@@ -249,7 +251,7 @@ export const brainstormTool: UnifiedTool = {
           | 'max'
           | 'ultra'
           | undefined,
-        personality: personality as 'pragmatic' | 'friendly' | undefined,
+        personality: personality as 'pragmatic' | 'friendly' | 'none' | undefined,
       },
       onProgress
     );

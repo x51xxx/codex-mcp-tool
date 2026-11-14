@@ -2,6 +2,7 @@ import { CLI, APPROVAL_POLICIES } from '../constants.js';
 import { Logger } from './logger.js';
 import { resolveWorkingDirectory } from './workingDirResolver.js';
 import { isValidModel, assertReasoningEffortSupported } from './modelDetection.js';
+import { InvalidArgumentError } from './errorTypes.js';
 import { checkMinimumCodexVersion } from './versionDetection.js';
 import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
@@ -40,7 +41,7 @@ export interface CodexCommandBuilderOptions {
   readonly changeMode?: boolean; // Prepend format instructions for structured OLD/NEW edits
   // New parameters (v2.0.0)
   readonly outputSchema?: string | Record<string, any>; // JSON Schema path or inline schema
-  readonly personality?: 'pragmatic' | 'friendly'; // Communication style
+  readonly personality?: 'pragmatic' | 'friendly' | 'none'; // Communication style
   readonly skipGitRepoCheck?: boolean; // Skip git repo validation
   readonly outputLastMessage?: string; // Write final message to file path
   readonly strictConfig?: boolean; // Fail on unknown config.toml fields
@@ -156,6 +157,10 @@ export class CodexCommandBuilder {
 
     // 14. Command mode (exec or exec resume)
     if (this.useResumeMode && options?.codexConversationId) {
+      // A positional starting with '-' would be parsed as a flag.
+      if (options.codexConversationId.startsWith('-')) {
+        throw new Error(`Invalid Codex conversation ID: ${options.codexConversationId}`);
+      }
       // Use "exec resume <session_id>" for non-interactive resume
       this.args.push('exec', CLI.FLAGS.RESUME, options.codexConversationId);
       Logger.debug(`Using exec resume mode with conversation ID: ${options.codexConversationId}`);
@@ -232,16 +237,19 @@ export class CodexCommandBuilder {
    */
   private validateOptions(options?: CodexCommandBuilderOptions): void {
     if (options?.approvalPolicy && options?.yolo) {
-      throw new Error('Cannot use both yolo and approvalPolicy');
+      throw new InvalidArgumentError('Cannot use both yolo and approvalPolicy');
     }
     if (options?.approval && options?.yolo) {
-      throw new Error('Cannot use both yolo and approval');
+      throw new InvalidArgumentError('Cannot use both yolo and approval');
     }
     if (options?.sandboxMode && options?.yolo) {
-      throw new Error('Cannot use both yolo and sandboxMode');
+      throw new InvalidArgumentError('Cannot use both yolo and sandboxMode');
+    }
+    if (options?.fullAuto && options?.yolo) {
+      throw new InvalidArgumentError('Cannot use both yolo and fullAuto');
     }
     if (options?.fullAuto && (options?.approvalPolicy || options?.approval)) {
-      throw new Error('Cannot combine fullAuto with an explicit approval policy');
+      throw new InvalidArgumentError('Cannot combine fullAuto with an explicit approval policy');
     }
 
     // `approval` reaches the builder as a free-form string (ToolArguments types
@@ -254,7 +262,7 @@ export class CodexCommandBuilder {
       ['approval', options?.approval],
     ] as const) {
       if (value && !validPolicies.includes(value)) {
-        throw new Error(
+        throw new InvalidArgumentError(
           `Invalid ${name} '${value}'. Valid values: ${validPolicies.join(', ')}. ` +
             `('on-failure' and 'untrusted' were both removed from Codex CLI.)`
         );
@@ -515,7 +523,8 @@ export class CodexCommandBuilder {
         'NEW:\n' +
         '[replacement code]\n' +
         '```\n\n' +
-        'Provide one block per edit. Include the exact original code that should be replaced.\n\n' +
+        'Provide one block per edit. Include the exact original code that should be replaced.\n' +
+        'If the code itself contains ``` lines, wrap the block in a longer fence (````) instead.\n\n' +
         finalPrompt;
       Logger.debug('Change mode enabled: prepended format instructions to prompt');
     }
@@ -532,18 +541,25 @@ export class CodexCommandBuilder {
     // instructions from stdin when the prompt argument is `-`; that avoids both
     // the OS argv length limit (E2BIG) and any dependence on the agent choosing
     // to read a file for us.
-    const MAX_COMMAND_LINE_LENGTH = 100000;
+    // Measured in bytes, not characters: Linux caps a single argv string at
+    // 128 KiB (MAX_ARG_STRLEN), and 100k characters of Cyrillic or CJK text is
+    // 200-300 KB in UTF-8.
+    const MAX_PROMPT_ARG_BYTES = 100000;
     const useStdin =
-      options?.useStdinForLongPrompts !== false && finalPrompt.length > MAX_COMMAND_LINE_LENGTH;
+      options?.useStdinForLongPrompts !== false &&
+      Buffer.byteLength(finalPrompt, 'utf8') > MAX_PROMPT_ARG_BYTES;
 
     let stdinInput: string | undefined;
 
+    // `--` ends option parsing: without it a prompt that starts with '-' (a
+    // markdown list such as "- fix X") fails with `unexpected argument '- '`.
+    // The `-` stdin sentinel still works after `--`.
+    this.args.push('--');
     if (useStdin) {
       stdinInput = finalPrompt;
       this.args.push('-');
       Logger.debug(`Prompt is ${finalPrompt.length} chars, sending it over stdin via '-'`);
     } else {
-      // Normal prompt handling
       this.args.push(finalPrompt);
     }
 

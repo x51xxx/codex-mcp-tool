@@ -145,7 +145,9 @@ export function extractPathFromAtSyntax(prompt: string, baseDir: string = proces
   const paths: string[] = [];
 
   // Pattern 1: Quoted paths with @ prefix: @"path" or @'path'
-  const quotedPathRegex = /@["']([^"']+)["']/g;
+  // `@` must start a token: `user@host/path` or `npm i pkg@scope/x` are not
+  // file references.
+  const quotedPathRegex = /(?<![\w.@])@["']([^"']+)["']/g;
   let match;
 
   while ((match = quotedPathRegex.exec(prompt)) !== null) {
@@ -157,7 +159,7 @@ export function extractPathFromAtSyntax(prompt: string, baseDir: string = proces
   }
 
   // Pattern 2: Unquoted absolute paths: @/path
-  const absolutePathRegex = /@(\/[^\s"']+)/g;
+  const absolutePathRegex = /(?<![\w.@])@(\/[^\s"']+)/g;
 
   while ((match = absolutePathRegex.exec(prompt)) !== null) {
     const path = match[1];
@@ -166,7 +168,7 @@ export function extractPathFromAtSyntax(prompt: string, baseDir: string = proces
   }
 
   // Pattern 3: Unquoted relative paths: @./path or @../path or @word/path
-  const relativePathRegex = /@(\.{1,2}\/[^\s"']+|[a-zA-Z0-9_-]+\/[^\s"']+)/g;
+  const relativePathRegex = /(?<![\w.@])@(\.{1,2}\/[^\s"']+|[a-zA-Z0-9_-]+\/[^\s"']+)/g;
 
   while ((match = relativePathRegex.exec(prompt)) !== null) {
     const path = match[1];
@@ -183,13 +185,17 @@ export function extractPathFromAtSyntax(prompt: string, baseDir: string = proces
  * Resolve the working directory using a fallback chain with multiple strategies.
  *
  * Priority order (highest to lowest):
- * 1. Explicit workingDir parameter
- * 2. Environment variables: CODEX_MCP_CWD > PWD > INIT_CWD
- * 3. Automatic inference from @path syntax in prompt
- * 4. process.cwd() as last resort
+ * 1. Explicit workingDir parameter — an invalid one is an error, never a
+ *    silent fallback (a write-enabled run would edit some other directory)
+ * 2. CODEX_MCP_CWD environment variable (explicit server-wide override)
+ * 3. Automatic inference from @path syntax in the prompt
+ * 4. PWD / INIT_CWD (the directory the client launched the server from)
+ * 5. process.cwd() as last resort
  *
- * @param options - Resolution options
- * @returns The resolved working directory path
+ * @path inference sits above PWD on purpose: PWD is practically always set, so
+ * with the old order the inference never ran.
+ *
+ * @throws when an explicit workingDir does not exist
  */
 export function resolveWorkingDirectory(options?: {
   workingDir?: string;
@@ -204,27 +210,25 @@ export function resolveWorkingDirectory(options?: {
   // Priority 1: Explicit workingDir parameter
   if (workingDir) {
     const validDir = ensureDirectory(workingDir, baseDir);
-    if (validDir) {
-      Logger.debug(`Using explicit working directory: ${validDir}`);
-      return validDir;
-    } else {
-      Logger.warn(`Explicit workingDir is invalid: ${workingDir}`);
+    if (!validDir) {
+      throw new Error(
+        `Working directory does not exist: ${workingDir}` +
+          (isAbsolute(workingDir) ? '' : ` (resolved against ${baseDir})`)
+      );
     }
+    Logger.debug(`Using explicit working directory: ${validDir}`);
+    return validDir;
   }
 
-  // Priority 2: Environment variables
-  const envVars = ['CODEX_MCP_CWD', 'PWD', 'INIT_CWD'] as const;
-  for (const envVar of envVars) {
-    const envValue = process.env[envVar];
-    if (envValue) {
-      const validDir = ensureDirectory(envValue, process.cwd());
-      if (validDir) {
-        Logger.debug(`Using environment variable ${envVar}: ${validDir}`);
-        return validDir;
-      } else {
-        Logger.debug(`Environment variable ${envVar} is invalid: ${envValue}`);
-      }
+  // Priority 2: explicit server-wide override
+  const override = process.env['CODEX_MCP_CWD'];
+  if (override) {
+    const validDir = ensureDirectory(override, process.cwd());
+    if (validDir) {
+      Logger.debug(`Using CODEX_MCP_CWD: ${validDir}`);
+      return validDir;
     }
+    Logger.warn(`CODEX_MCP_CWD is not a directory, ignoring: ${override}`);
   }
 
   // Priority 3: Automatic inference from @path syntax
@@ -233,7 +237,6 @@ export function resolveWorkingDirectory(options?: {
 
     for (const path of paths) {
       if (existsSync(path)) {
-        // Find the project root for this path
         const projectRoot = findProjectRoot(path);
         if (projectRoot) {
           Logger.debug(`Inferred working directory from @path syntax: ${projectRoot}`);
@@ -243,7 +246,20 @@ export function resolveWorkingDirectory(options?: {
     }
   }
 
-  // Priority 4: process.cwd() as fallback
+  // Priority 4: launch directory
+  for (const envVar of ['PWD', 'INIT_CWD'] as const) {
+    const envValue = process.env[envVar];
+    if (envValue) {
+      const validDir = ensureDirectory(envValue, process.cwd());
+      if (validDir) {
+        Logger.debug(`Using environment variable ${envVar}: ${validDir}`);
+        return validDir;
+      }
+      Logger.debug(`Environment variable ${envVar} is invalid: ${envValue}`);
+    }
+  }
+
+  // Priority 5: process.cwd() as fallback
   const cwd = process.cwd();
   Logger.debug(`Using process.cwd() as working directory: ${cwd}`);
   return cwd;

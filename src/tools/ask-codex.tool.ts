@@ -4,11 +4,10 @@ import { executeCodexCLI, executeCodex, CodexExecutionResult } from '../utils/co
 import { processChangeModeOutput } from '../utils/changeModeRunner.js';
 import { formatCodexResponseForMCP, ResponseMode } from '../utils/outputParser.js';
 import { MODELS, APPROVAL_POLICIES, ERROR_MESSAGES } from '../constants.js';
-import { createCodexError, formatErrorForUser } from '../utils/errorTypes.js';
+import { createCodexError, formatErrorForUser, InvalidArgumentError } from '../utils/errorTypes.js';
 import {
   getOrCreateSession,
   saveSession,
-  getCodexConversationId,
   setCodexConversationId,
   parseConversationIdFromOutput,
   deleteSession,
@@ -39,7 +38,9 @@ const askCodexArgsSchema = z.object({
   approvalPolicy: z
     .enum(['never', 'on-request'])
     .optional()
-    .describe('Approval: never, on-request'),
+    .describe(
+      'Approval policy (-a): never, on-request. Note: non-interactive `codex exec` runs report `approval: never` even with on-request, since nobody can answer a prompt.'
+    ),
   approval: z
     .enum(['never', 'on-request'])
     .optional()
@@ -76,8 +77,18 @@ const askCodexArgsSchema = z.object({
     .union([z.string(), z.record(z.any())])
     .optional()
     .describe("Configuration overrides as 'key=value' string or object"),
-  profile: z.string().optional().describe('Configuration profile to use from ~/.codex/config.toml'),
-  timeout: z.number().optional().describe('Maximum execution time in milliseconds (optional)'),
+  profile: z
+    .string()
+    .optional()
+    .describe(
+      'Config profile (-p <name>): layers $CODEX_HOME/<name>.config.toml over the base config. Legacy [profiles.<name>] tables in config.toml make the CLI refuse the run.'
+    ),
+  timeout: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum execution time in milliseconds (optional)'),
   includeThinking: z
     .boolean()
     .default(true)
@@ -143,10 +154,10 @@ const askCodexArgsSchema = z.object({
     .optional()
     .describe('JSON Schema path or inline schema to constrain output format (Codex CLI v0.95.0+)'),
   personality: z
-    .enum(['pragmatic', 'friendly'])
+    .enum(['pragmatic', 'friendly', 'none'])
     .optional()
     .describe(
-      'Communication style: pragmatic (concise, machine-friendly) or friendly (conversational). Codex CLI v0.94.0+'
+      'Communication style: pragmatic (concise, machine-friendly), friendly (conversational) or none (no personality instructions)'
     ),
   skipGitRepoCheck: z
     .boolean()
@@ -247,12 +258,14 @@ export const askCodexTool: UnifiedTool = {
     }
 
     if (ephemeral && sessionId) {
-      throw new Error(
+      throw new InvalidArgumentError(
         'ephemeral cannot be combined with sessionId because the session is not persisted'
       );
     }
 
-    if (changeMode && chunkIndex && chunkCacheKey) {
+    // Chunk requests are answered from the cache (or rejected) without
+    // running Codex: only chunk 1 with no cache key starts a fresh run.
+    if (changeMode && chunkIndex !== undefined && (chunkCacheKey || chunkIndex !== 1)) {
       return processChangeModeOutput('', {
         chunkIndex: chunkIndex as number,
         cacheKey: chunkCacheKey as string,
@@ -263,17 +276,9 @@ export const askCodexTool: UnifiedTool = {
     // Session management (v1.4.0+)
     let codexConversationId: string | undefined;
     let activeSessionId: string | undefined;
-
-    if (sessionId) {
-      // Handle session reset
-      if (resetSession) {
-        deleteSession(sessionId as string);
-      } else {
-        // Try to get existing Codex conversation ID for resume
-        codexConversationId = getCodexConversationId(sessionId as string);
-      }
-      activeSessionId = sessionId as string;
-    }
+    // Model to keep on resume: `exec resume` otherwise falls back to the
+    // config default, silently switching models mid-conversation.
+    let sessionModel: string | undefined;
 
     // Resolve working directory for session
     const resolvedWorkingDir = resolveWorkingDirectory({
@@ -281,13 +286,20 @@ export const askCodexTool: UnifiedTool = {
       prompt: prompt as string,
     });
 
-    // Get or create session if sessionId provided
-    if (activeSessionId && resolvedWorkingDir) {
-      const session = getOrCreateSession(resolvedWorkingDir, activeSessionId);
-      activeSessionId = session.sessionId;
-      if (!codexConversationId) {
-        codexConversationId = session.codexConversationId;
+    // Sessions are keyed by directory + sessionId; every lookup and update
+    // below must use the same directory or it would address another entry.
+    const sessionDir = resolvedWorkingDir || process.cwd();
+
+    if (sessionId) {
+      if (resetSession) {
+        deleteSession(sessionId as string, sessionDir);
       }
+      // A sessionId used in another directory is a separate session, so it
+      // never resumes (or replaces) that directory's conversation.
+      const session = getOrCreateSession(sessionDir, sessionId as string);
+      activeSessionId = session.sessionId;
+      codexConversationId = session.codexConversationId;
+      sessionModel = codexConversationId ? session.model : undefined;
     }
 
     try {
@@ -295,11 +307,17 @@ export const askCodexTool: UnifiedTool = {
       const result = await executeCodex(
         prompt as string,
         {
-          model: model as string,
-          fullAuto: Boolean(fullAuto || sandbox),
+          model: (model as string | undefined) || sessionModel,
+          // Legacy `sandbox: true` is shorthand for fullAuto; with an explicit
+          // approval policy it only selects the writable sandbox, instead of
+          // tripping the fullAuto/approval conflict the caller never asked for.
+          fullAuto: Boolean(fullAuto || (sandbox && !approvalPolicy && !approval)),
           approvalPolicy: approvalPolicy as any,
           approval: approval as string,
-          sandboxMode: sandboxMode as any,
+          sandboxMode: (sandboxMode ??
+            (sandbox && !fullAuto && (approvalPolicy || approval)
+              ? 'workspace-write'
+              : undefined)) as any,
           yolo: Boolean(yolo),
           cd: cd as string,
           workingDir: workingDir as string,
@@ -325,7 +343,7 @@ export const askCodexTool: UnifiedTool = {
           codexConversationId, // Pass conversation ID for resume
           changeMode: Boolean(changeMode), // Pass changeMode for format instructions
           outputSchema,
-          personality: personality as 'pragmatic' | 'friendly' | undefined,
+          personality: personality as 'pragmatic' | 'friendly' | 'none' | undefined,
           skipGitRepoCheck: Boolean(skipGitRepoCheck),
           outputLastMessage: outputLastMessage as string | undefined,
           strictConfig: Boolean(strictConfig),
@@ -340,10 +358,11 @@ export const askCodexTool: UnifiedTool = {
       // Parse and store conversation ID from response for future resume
       // Conversation ID may be in stdout OR stderr - check both
       if (activeSessionId) {
-        const combinedOutput = `${result.output}\n${result.stderr}`;
-        const newConversationId = parseConversationIdFromOutput(combinedOutput);
+        // Codex prints the thread ID in its stderr banner; stdout is the
+        // model's answer and must not be able to inject one.
+        const newConversationId = parseConversationIdFromOutput(result.stderr);
         if (newConversationId) {
-          setCodexConversationId(activeSessionId, newConversationId);
+          setCodexConversationId(activeSessionId, newConversationId, sessionDir);
         }
 
         // Update session with latest prompt/response
@@ -351,8 +370,8 @@ export const askCodexTool: UnifiedTool = {
           sessionId: activeSessionId,
           lastPrompt: prompt as string,
           lastResponse: result.output.substring(0, 1000), // Store truncated response
-          model: model as string,
-          workingDir: resolvedWorkingDir,
+          model: (model as string | undefined) || sessionModel,
+          workingDir: sessionDir,
         });
       }
 

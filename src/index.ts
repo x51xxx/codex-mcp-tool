@@ -31,11 +31,23 @@ import {
   getPromptMessage,
 } from './tools/index.js';
 import { getCompletionValues } from './utils/completions.js';
+import { runWithRequestContext } from './utils/requestContext.js';
+import type { ToolExecuteResult } from './tools/registry.js';
+
+/**
+ * Tools report failures as text starting with ❌ (or set `isError`). The MCP
+ * result must carry `isError: true` for those, otherwise the client treats the
+ * failure as a successful answer.
+ */
+function isErrorResult(result: ToolExecuteResult): boolean {
+  if (typeof result === 'string') return result.trimStart().startsWith('❌');
+  return result.isError ?? result.text.trimStart().startsWith('❌');
+}
 
 const server = new Server(
   {
     name: 'codex-cli-mcp',
-    version: '2.6.0',
+    version: '2.7.0',
   },
   {
     capabilities: {
@@ -184,7 +196,7 @@ server.setRequestHandler(
 // tools/get
 server.setRequestHandler(
   CallToolRequestSchema,
-  async (request: CallToolRequest): Promise<CallToolResult> => {
+  async (request: CallToolRequest, extra): Promise<CallToolResult> => {
     const toolName: string = request.params.name;
 
     if (toolExists(toolName)) {
@@ -201,14 +213,19 @@ server.setRequestHandler(
         Logger.toolInvocation(toolName, request.params.arguments);
 
         // Execute the tool using the unified registry with progress callback
-        const result = await executeTool(toolName, args, newOutput => {
-          if (progressData.state) {
-            progressData.state.latestOutput = newOutput;
-          }
-        });
+        // The request's abort signal is exposed to every spawned process via
+        // async context, so a client cancel stops Codex instead of leaving it
+        // running (and editing files) until its own timeout.
+        const result = await runWithRequestContext({ signal: extra?.signal }, () =>
+          executeTool(toolName, args, newOutput => {
+            if (progressData.state) {
+              progressData.state.latestOutput = newOutput;
+            }
+          })
+        );
 
-        // Stop progress updates
-        stopProgressUpdates(progressData, true);
+        const isError = isErrorResult(result);
+        stopProgressUpdates(progressData, !isError);
 
         if (typeof result === 'string') {
           return {
@@ -218,7 +235,7 @@ server.setRequestHandler(
                 text: result,
               },
             ],
-            isError: false,
+            isError,
           };
         } else {
           return {
@@ -229,7 +246,7 @@ server.setRequestHandler(
               },
             ],
             structuredContent: result.structuredContent,
-            isError: false,
+            isError,
           } as CallToolResult;
         }
       } catch (error) {

@@ -8,6 +8,13 @@ import {
   CODEX_PATH_ENV,
   BinaryResolution,
 } from './binaryResolver.js';
+import { currentAbortSignal } from './requestContext.js';
+
+const DEFAULT_TIMEOUT_MS = 600000;
+/** Grace period between SIGTERM and SIGKILL. */
+const KILL_GRACE_MS = 5000;
+/** Only the tail of stderr is kept; Codex streams its whole transcript there. */
+const MAX_STDERR_BYTES = 1024 * 1024;
 
 export interface CommandResult {
   ok: boolean;
@@ -16,6 +23,10 @@ export interface CommandResult {
   stdout: string;
   stderr: string;
   timedOut: boolean;
+  /** stdout grew past `maxOutputBytes` and the child was stopped. */
+  outputExceeded?: boolean;
+  /** The MCP client cancelled the request and the child was stopped. */
+  aborted?: boolean;
   partialStdout?: string;
 }
 
@@ -37,6 +48,22 @@ export interface ExecuteOptions {
    * process's stdin (the MCP stdio transport).
    */
   stdinInput?: string;
+  /**
+   * Stops the child when aborted. Defaults to the abort signal of the MCP
+   * request being served, so a cancelled tool call never leaves Codex running.
+   */
+  signal?: AbortSignal;
+}
+
+function abortedResult(): CommandResult {
+  return {
+    ok: false,
+    code: null,
+    stdout: '',
+    stderr: 'Request cancelled by the client',
+    timedOut: false,
+    aborted: true,
+  };
 }
 
 /**
@@ -70,12 +97,18 @@ export async function executeCommandDetailed(
 ): Promise<CommandResult> {
   const {
     onProgress,
-    timeoutMs = 600000,
     maxOutputBytes = 50 * 1024 * 1024, // 50MB default
     retry,
     cwd,
     stdinInput,
+    signal = currentAbortSignal(),
   } = options;
+  // 0, negative or NaN would otherwise mean "kill immediately" (setTimeout
+  // clamps to 1ms) — treat anything that is not a positive number as unset.
+  const timeoutMs =
+    options.timeoutMs !== undefined && options.timeoutMs > 0
+      ? options.timeoutMs
+      : DEFAULT_TIMEOUT_MS;
 
   // Pre-flight checks. Both failures below would otherwise surface as an
   // identical, misleading "command not found" ENOENT — and neither is fixed by
@@ -101,6 +134,9 @@ export async function executeCommandDetailed(
   const maxAttempts = retry?.attempts || 1;
 
   while (attempt < maxAttempts) {
+    if (signal?.aborted) {
+      return abortedResult();
+    }
     attempt++;
     const result = await executeOnce(resolution, args, {
       onProgress,
@@ -108,9 +144,10 @@ export async function executeCommandDetailed(
       maxOutputBytes,
       cwd,
       stdinInput,
+      signal,
     });
 
-    if (result.ok) {
+    if (result.ok || result.aborted) {
       return result;
     }
 
@@ -137,7 +174,7 @@ export async function executeCommandDetailed(
 async function executeOnce(
   resolution: BinaryResolution,
   args: string[],
-  { onProgress, timeoutMs, maxOutputBytes, cwd, stdinInput }: Omit<ExecuteOptions, 'retry'>
+  { onProgress, timeoutMs, maxOutputBytes, cwd, stdinInput, signal }: Omit<ExecuteOptions, 'retry'>
 ): Promise<CommandResult> {
   return new Promise(resolve => {
     const startTime = Date.now();
@@ -177,32 +214,52 @@ async function executeOnce(
     }
 
     const stdoutChunks: Buffer[] = [];
-    const stderrChunks: Buffer[] = [];
+    let stderrTail = Buffer.alloc(0);
     let totalStdoutBytes = 0;
     let isResolved = false;
     let outputExceeded = false;
+    let abortedByClient = false;
     // Tracks whether *we* killed the child for running too long. A child that
     // catches SIGTERM and exits(0) on its own (Codex CLI does this) reports
     // `signal: null, code: 0` to the 'close' handler — indistinguishable from
     // a clean finish unless we remember the kill ourselves.
     let killedByTimeout = false;
+    let killTimer: NodeJS.Timeout | undefined;
 
-    // Set up timeout with SIGKILL fallback
+    // SIGTERM first so Codex can stop its own children, SIGKILL if it lingers.
+    const terminate = () => {
+      if (killTimer || isResolved) return;
+      childProcess.kill('SIGTERM');
+      killTimer = setTimeout(() => {
+        if (!isResolved) {
+          childProcess.kill('SIGKILL');
+          Logger.error(`Process did not terminate, sending SIGKILL`);
+        }
+      }, KILL_GRACE_MS);
+    };
+
     const timeoutId = setTimeout(() => {
       if (!isResolved) {
         killedByTimeout = true;
-        childProcess.kill('SIGTERM');
         Logger.warn(`Process timeout after ${timeoutMs}ms, sending SIGTERM`);
-
-        // Give process 5 seconds to terminate gracefully
-        setTimeout(() => {
-          if (!isResolved) {
-            childProcess.kill('SIGKILL');
-            Logger.error(`Process did not terminate, sending SIGKILL`);
-          }
-        }, 5000);
+        terminate();
       }
-    }, timeoutMs || 600000);
+    }, timeoutMs || DEFAULT_TIMEOUT_MS);
+
+    const onAbort = () => {
+      if (!isResolved) {
+        abortedByClient = true;
+        Logger.warn('Request cancelled by the client, stopping the process');
+        terminate();
+      }
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      if (killTimer) clearTimeout(killTimer);
+      signal?.removeEventListener('abort', onAbort);
+    };
 
     childProcess.stdout?.on('data', (data: Buffer) => {
       // Check output size limit
@@ -210,7 +267,7 @@ async function executeOnce(
         if (!outputExceeded) {
           outputExceeded = true;
           Logger.warn(`Output exceeded ${maxOutputBytes} bytes, stopping collection`);
-          childProcess.kill('SIGTERM');
+          terminate();
         }
         return;
       }
@@ -224,14 +281,17 @@ async function executeOnce(
       }
     });
 
-    // Capture stderr for error reporting
+    // Capture stderr for error reporting — the tail is where errors land.
     childProcess.stderr?.on('data', (data: Buffer) => {
-      stderrChunks.push(data);
+      stderrTail = Buffer.concat([stderrTail, data]);
+      if (stderrTail.length > MAX_STDERR_BYTES) {
+        stderrTail = stderrTail.subarray(stderrTail.length - MAX_STDERR_BYTES);
+      }
     });
     childProcess.on('error', error => {
       if (!isResolved) {
         isResolved = true;
-        clearTimeout(timeoutId);
+        cleanup();
         Logger.error(`Process error:`, error);
 
         // Check for common errors
@@ -262,25 +322,31 @@ async function executeOnce(
         }
       }
     });
-    childProcess.on('close', (code, signal) => {
+    childProcess.on('close', (code, exitSignal) => {
       if (!isResolved) {
         isResolved = true;
-        clearTimeout(timeoutId);
+        cleanup();
 
         const stdout = Buffer.concat(stdoutChunks).toString('utf8');
-        const stderr = Buffer.concat(stderrChunks).toString('utf8');
-        const timedOut = killedByTimeout || signal === 'SIGTERM' || signal === 'SIGKILL';
+        const stderr = stderrTail.toString('utf8');
+        // Only our own timer decides "timed out": a SIGTERM we sent for an
+        // output overflow or a client cancel is not a timeout, and Codex
+        // exits 0 after catching SIGTERM, so the exit signal proves nothing.
+        const timedOut = killedByTimeout;
+        const interrupted = timedOut || outputExceeded || abortedByClient;
 
         Logger.commandComplete(startTime, code, stdout.length);
 
         resolve({
-          ok: code === 0 && !outputExceeded && !timedOut,
+          ok: code === 0 && !interrupted,
           code,
-          signal: signal || undefined,
+          signal: exitSignal || undefined,
           stdout: stdout.trim(),
           stderr: stderr.trim(),
           timedOut,
-          partialStdout: timedOut || outputExceeded ? stdout : undefined,
+          ...(outputExceeded ? { outputExceeded } : {}),
+          ...(abortedByClient ? { aborted: true } : {}),
+          partialStdout: interrupted ? stdout : undefined,
         });
       }
     });
@@ -294,7 +360,7 @@ export async function executeCommand(
   command: string,
   args: string[],
   onProgress?: (newOutput: string) => void,
-  timeoutMs: number = 600000
+  timeoutMs: number = DEFAULT_TIMEOUT_MS
 ): Promise<string> {
   const result = await executeCommandDetailed(command, args, {
     onProgress,
@@ -303,12 +369,20 @@ export async function executeCommand(
 
   if (!result.ok) {
     const errorMessage = result.stderr || 'Unknown error';
-    throw new Error(
-      result.timedOut
-        ? `Command timed out after ${timeoutMs}ms`
-        : `Command failed with exit code ${result.code}: ${errorMessage}`
-    );
+    throw new Error(describeFailure(result, timeoutMs, errorMessage));
   }
 
   return result.stdout;
+}
+
+/** One-line reason for a failed run, for callers that turn it into an Error. */
+export function describeFailure(
+  result: CommandResult,
+  timeoutMs: number,
+  detail: string = result.stderr || 'Unknown error'
+): string {
+  if (result.aborted) return 'Request cancelled by the client';
+  if (result.timedOut) return `Command timed out after ${timeoutMs}ms`;
+  if (result.outputExceeded) return 'Command output exceeded the size limit and was stopped';
+  return `Command failed with exit code ${result.code}: ${detail}`;
 }

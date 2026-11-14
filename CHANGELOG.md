@@ -1,5 +1,43 @@
 # Changelog
 
+## [2.7.0] - 2026-11-14
+
+Bug fixes from the 2026-11-14 code audit, verified against Codex CLI `0.169.0`.
+
+### Fixed
+
+- **debug/info logs went to stdout and corrupted the MCP stdio stream** once a client called `logging/setLevel debug`. Every level now goes to stderr.
+- **Prompts starting with `-` failed** (`unexpected argument '- '`), e.g. a markdown list. The prompt now follows `--` in `exec`, `exec resume` and `review`.
+- **Errors were misclassified:** Codex's stderr banner (`sandbox: read-only`) turned any failure — an unknown model included — into "Permission denied", and `401`/`429` matched inside session UUIDs. Only the `ERROR:` lines are classified now; precise causes are checked before the loose "error … model" wording ("rate limit reached for model X" was a Model Error), the broad `connect`/`session`/`expired` matches are gone, a client cancel gets its own "Request Cancelled" category, and arguments rejected by our own validation (unsupported reasoning effort, `yolo` + `fullAuto`, `ephemeral` + `sessionId`, …) are "Invalid Arguments" instead of "Unknown Error" with advice to run `codex login`.
+- **Failures were reported as successes:** `❌ …` results now carry `isError: true` (ask-codex, review-changes, fetch-chunk, list-\*, health, failed do-act, all-failed batch).
+- **Cancelled MCP requests left `codex` running** (and editing files) until its timeout. The request's abort signal now stops the child.
+- **An invalid `workingDir` silently fell back** to another directory; it is now an error. `@path` inference now runs before `PWD` (it never ran before) and ignores `user@host/path`.
+- **`brainstorm` returned a timed-out or truncated transcript as its answer** (`executeCodexCLI` partial-output salvage removed).
+- **Sessions leaked across workspaces:** a `sessionId` reused in another directory resumed that directory's conversation. Sessions are now stored per (directory, `sessionId`), so the same ID in two directories is two independent conversations: neither resumes nor replaces the other, and a branch switch in the same directory keeps it. `list-sessions` shows each session's directory, and `delete` takes an optional `workingDir`. Resuming also silently switched to the config-default model; the session's model is now kept. The thread id is read only from a whole `session id:` line of stderr.
+- **`fetch-chunk` path traversal:** `cacheKey` is validated; the cache moved to a per-user, owner-only directory with random keys.
+- **Prompt text in logs:** command lines were logged at the default `warning` level with the full prompt; now debug-only and truncated. A map that kept the argv of failed spawns forever is gone.
+- Prompts over 100 KB of UTF-8 (not characters) go over stdin — 100k Cyrillic characters exceeded Linux's 128 KiB argv limit.
+- `timeout: 0` meant 10 minutes and a negative timeout killed Codex at once; timeouts must now be positive integers. stderr is capped at its last 1 MB; output overflow gets a SIGKILL fallback and is no longer reported as a timeout.
+- `review-changes`: pins `-s read-only` (it is advertised read-only), escapes the model name, rejects `base`/`commit` values starting with `-`, and reports any failed run as a failure instead of "Code Review Results".
+- `do-act`: the verify command gets the directory as `cwd` instead of interpolating it into the shell string; the fix prompt includes both stdout and stderr; retries resume the same Codex conversation; a cancel stops the loop.
+- `batch-codex`: keeps its report when every task fails; `sandbox` is validated as an enum.
+- changeMode: chunk requests no longer run Codex before rejecting a missing cache key; a longer fence (``) can wrap code containing `.
+- Output parsing: an answer containing `--------` or "OpenAI Codex" is no longer mistaken for the interactive transcript and cut short.
+- `health` checks authentication with `codex login status` (the old check passed whenever the CLI was installed) and spawns `codex --version` once.
+- `image-gen`: a run that produced no image is reported with `isError`; an existing directory as `outputPath` works without a trailing slash; non-image files are ignored; truncated PNGs are handled.
+- `list-skills` reads the frontmatter `description:` and also scans `.codex/skills`, `$CODEX_HOME/skills` and `~/.agents/skills`. `list-sessions` shows full session IDs.
+- `sandbox: true` combined with an approval policy no longer fails with a fullAuto conflict; `fullAuto` + `yolo` is rejected.
+
+### Changed
+
+- Models synced with the 0.169.0 catalog: added `gpt-6.1-terra`; removed `gpt-5.5` (retired for ChatGPT sign-in on 2026-10-14; still passes through with API-key auth). `personality` accepts `none`.
+- `timeout-test` is registered only with `CODEX_MCP_TEST_TOOLS=1`.
+- `npm test` runs a `node --test` suite (39 tests, via `scripts/run-tests.mjs` so it works on Node 18+ and Windows); `prepublishOnly` runs lint + tests.
+
+### Removed
+
+- Unused `src/utils/reviewParser.ts`.
+
 ## [2.6.0] - 2026-09-30
 
 ### Changed

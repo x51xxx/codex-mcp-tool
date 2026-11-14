@@ -34,3 +34,5 @@ resource/
 
 # Test scripts (optional - comment out if needed)
 test-features.sh
+
+note.md

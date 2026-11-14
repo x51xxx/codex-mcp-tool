@@ -45,9 +45,9 @@ Requirements: Node `>=18`, `codex` CLI installed and authenticated.
 - OSS mode: model name passed as-is (skip OpenAI model validation)
 - `search`, `oss`, `localProvider` auto-set `--sandbox workspace-write`
 
-### Tools (13 registered)
+### Tools (13 registered, +1 diagnostic)
 
-`ask-codex`, `batch-codex`, `review-changes`, `do-act`, `brainstorm`, `fetch-chunk`, `list-sessions`, `list-skills`, `health`, `ping`, `help`, `version`, `timeout-test`
+`ask-codex`, `batch-codex`, `review-changes`, `do-act`, `brainstorm`, `image-gen`, `fetch-chunk`, `list-sessions`, `list-skills`, `health`, `ping`, `help`, `version`; `timeout-test` only with `CODEX_MCP_TEST_TOOLS=1`
 
 ## Adding a New Tool
 
@@ -63,4 +63,4 @@ Keep changes scoped; update `README.md` and `docs/` when behavior changes.
 
 ## Testing
 
-No automated tests yet (`npm test` is a stub). If adding tests, place alongside sources and cover `src/utils/` parsing/execution utilities.
+`npm test` builds and runs `node --test 'dist/**/*.test.js'` (no extra dependencies). Tests live next to sources as `*.test.ts`; they are excluded from the npm package.

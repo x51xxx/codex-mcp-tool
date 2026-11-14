@@ -34,12 +34,14 @@ export const STATUS_MESSAGES = {
 export const MODELS = {
   GPT6_1_SOL: 'gpt-6.1-sol', // Latest workhorse for coding and everyday work (Codex CLI 0.159+)
   GPT6_ASTRA: 'gpt-6-astra', // Frontier intelligence for the most demanding work
+  GPT6_1_TERRA: 'gpt-6.1-terra', // Fast, efficient: visual reasoning, computer use, writing (2026-10-26)
   GPT6_SOL: 'gpt-6-sol', // Previous-generation workhorse
   GPT6_LUNA: 'gpt-6-luna', // Fast, affordable model for easier tasks
   GPT5_6_SOL: 'gpt-5.6-sol', // Older-generation workhorse
   GPT5_6_TERRA: 'gpt-5.6-terra', // Older balanced model for straightforward work
   GPT5_6_LUNA: 'gpt-5.6-luna', // Older fast, efficient model
-  GPT5_5: 'gpt-5.5', // Legacy; Codex steers callers to gpt-5.6-sol
+  // gpt-5.5 was retired for ChatGPT sign-in on 2026-10-14 ("not supported when using Codex with a
+  // ChatGPT account"); it still runs with API-key auth, where it passes through as an unknown slug.
 } as const;
 
 // Reasoning levels exposed by the current Codex CLI model picker.
@@ -55,7 +57,7 @@ export const REASONING_EFFORTS = {
 
 /**
  * Reasoning levels each known model actually accepts, from
- * `$CODEX_HOME/models_cache.json` (client_version 0.159.2). `max` and `ultra`
+ * `$CODEX_HOME/models_cache.json` (re-synced 2026-11-14, Codex CLI 0.169.0). `max` and `ultra`
  * are not universal: asking for an unsupported level is rejected by the CLI, so
  * it is worth catching before spawning.
  *
@@ -65,19 +67,23 @@ export const REASONING_EFFORTS = {
 export const MODEL_REASONING_EFFORTS: Record<string, readonly string[]> = {
   [MODELS.GPT6_1_SOL]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT6_ASTRA]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  [MODELS.GPT6_1_TERRA]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT6_SOL]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT6_LUNA]: ['low', 'medium', 'high', 'xhigh', 'max'],
   [MODELS.GPT5_6_SOL]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT5_6_TERRA]: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   [MODELS.GPT5_6_LUNA]: ['low', 'medium', 'high', 'xhigh', 'max'],
-  [MODELS.GPT5_5]: ['low', 'medium', 'high', 'xhigh'],
 };
 
 // Personality modes (Codex CLI v0.94.0+)
+// Values accepted by the `personality` config key (CLI rejects others with "expected one of …").
 export const PERSONALITIES = {
   PRAGMATIC: 'pragmatic',
   FRIENDLY: 'friendly',
+  NONE: 'none',
 } as const;
+
+export type Personality = (typeof PERSONALITIES)[keyof typeof PERSONALITIES];
 
 // Sandbox modes
 export const SANDBOX_MODES = {
@@ -218,7 +224,7 @@ export interface ToolArguments {
 
   // New parameters (v2.0.0)
   outputSchema?: string | Record<string, any>; // JSON Schema path or inline schema
-  personality?: 'pragmatic' | 'friendly'; // Communication style
+  personality?: Personality; // Communication style
   skipGitRepoCheck?: boolean; // Skip git repo validation
   outputLastMessage?: string; // Write final message to file path
   strictConfig?: boolean; // Fail on unknown config.toml fields

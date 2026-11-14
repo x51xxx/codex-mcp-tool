@@ -6,6 +6,8 @@ Test timeout prevention and long-running operations handling.
 
 The `timeout-test` tool simulates long-running operations to test the MCP server's timeout prevention mechanisms and progress notification system. It's primarily used for debugging and verifying that the server maintains connection during extended operations.
 
+> Since v2.7.0 the tool is registered only when the server runs with `CODEX_MCP_TEST_TOOLS=1`.
+
 ## Syntax
 
 ```javascript

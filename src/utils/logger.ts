@@ -12,16 +12,12 @@ const LEVEL_ORDER: Record<LoggingLevel, number> = {
   emergency: 7,
 };
 
-const LEVEL_CONSOLE_METHOD: Record<LoggingLevel, 'log' | 'warn' | 'error'> = {
-  debug: 'log',
-  info: 'log',
-  notice: 'log',
-  warning: 'warn',
-  error: 'error',
-  critical: 'error',
-  alert: 'error',
-  emergency: 'error',
-};
+/** Longest single argument or value printed in a log line. */
+const MAX_LOGGED_ARG_CHARS = 200;
+
+function truncateForLog(value: string, max: number = MAX_LOGGED_ARG_CHARS): string {
+  return value.length > max ? `${value.slice(0, max)}… [${value.length} chars]` : value;
+}
 
 export class Logger {
   private static currentLevel: LoggingLevel = 'warning';
@@ -45,8 +41,10 @@ export class Logger {
   private static emit(level: LoggingLevel, message: string, ...args: any[]): void {
     if (!this.shouldLog(level)) return;
 
-    const consoleMethod = LEVEL_CONSOLE_METHOD[level];
-    console[consoleMethod](this.formatMessage(level, message), ...args);
+    // stdout carries the MCP JSON-RPC stream, so every level — debug and info
+    // included — must go to stderr. A single stray line on stdout corrupts the
+    // protocol for the client.
+    console.error(this.formatMessage(level, message), ...args);
   }
 
   static log(message: string, ...args: any[]): void {
@@ -66,7 +64,11 @@ export class Logger {
   }
 
   static toolInvocation(toolName: string, args: any): void {
-    this.debug(`Raw args for tool '${toolName}':`, JSON.stringify(args, null, 2));
+    if (!this.shouldLog('debug')) return;
+    const summary = JSON.stringify(args ?? {}, (_key, value) =>
+      typeof value === 'string' ? truncateForLog(value) : value
+    );
+    this.debug(`Args for tool '${toolName}': ${summary}`);
   }
 
   static toolParsedArgs(
@@ -75,31 +77,27 @@ export class Logger {
     sandbox?: boolean,
     changeMode?: boolean
   ): void {
-    this.debug(`Parsed prompt: "${prompt}"\nchangeMode: ${changeMode || false}`);
+    this.debug(`Parsed prompt: "${truncateForLog(prompt)}"\nchangeMode: ${changeMode || false}`);
   }
 
+  /**
+   * Logged at debug only, with long arguments (the prompt) truncated: the
+   * default `warning` level reaches the MCP client's log, and prompts often
+   * carry source code or secrets.
+   */
   static commandExecution(command: string, args: string[], startTime: number): void {
-    this.warn(`[${startTime}] Starting: ${command} ${args.map(arg => `"${arg}"`).join(' ')}`);
-
-    // Store command execution start for timing analysis
-    this._commandStartTimes.set(startTime, { command, args, startTime });
+    if (!this.shouldLog('debug')) return;
+    this.debug(
+      `[${startTime}] Starting: ${command} ${args.map(arg => `"${truncateForLog(arg)}"`).join(' ')}`
+    );
   }
-
-  // Track command start times for duration calculation
-  private static _commandStartTimes = new Map<
-    number,
-    { command: string; args: string[]; startTime: number }
-  >();
 
   static commandComplete(startTime: number, exitCode: number | null, outputLength?: number): void {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    this.warn(`[${elapsed}s] Process finished with exit code: ${exitCode}`);
-    if (outputLength !== undefined) {
-      this.warn(`Response: ${outputLength} chars`);
-    }
-
-    // Clean up command tracking
-    this._commandStartTimes.delete(startTime);
+    this.debug(
+      `[${elapsed}s] Process finished with exit code: ${exitCode}` +
+        (outputLength !== undefined ? `, ${outputLength} chars of output` : '')
+    );
   }
 
   static codexResponse(response: string, tokensUsed?: number): void {

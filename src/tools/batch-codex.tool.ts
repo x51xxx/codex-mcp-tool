@@ -28,7 +28,7 @@ const batchCodexArgsSchema = z.object({
       `Optional model override applied to every task. Known: ${Object.values(MODELS).join(', ')}. If omitted, uses your Codex CLI default (~/.codex/config.toml).`
     ),
   sandbox: z
-    .string()
+    .enum(Object.values(SANDBOX_MODES) as [string, ...string[]])
     .default(SANDBOX_MODES.WORKSPACE_WRITE)
     .describe(`Sandbox mode: ${Object.values(SANDBOX_MODES).join(', ')}`),
   parallel: z.boolean().default(false).describe('Execute independent tasks in parallel'),
@@ -40,7 +40,12 @@ const batchCodexArgsSchema = z.object({
     .optional()
     .describe('Maximum parallel Codex processes when parallel=true. Default: min(task count, 4)'),
   stopOnError: z.boolean().default(true).describe('Stop execution if any task fails'),
-  timeout: z.number().optional().describe('Maximum execution time per task in milliseconds'),
+  timeout: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum execution time per task in milliseconds'),
   workingDir: z.string().optional().describe('Working directory for execution'),
   search: z
     .boolean()
@@ -244,13 +249,13 @@ export const batchCodexTool: UnifiedTool = {
       }
     }
 
-    // If all tasks failed, throw an error
-    if (failedCount === sortedTasks.length) {
-      throw new Error(`All ${failedCount} tasks failed. See report above for details.`);
-    }
+    // If every task failed, the result is an error — but keep the report and
+    // the per-task errors instead of replacing them with a bare message.
+    const allFailed = failedCount === sortedTasks.length;
 
     return {
-      text: report,
+      ...(allFailed ? { isError: true } : {}),
+      text: allFailed ? `❌ All ${failedCount} tasks failed.\n\n${report}` : report,
       structuredContent: {
         total: sortedTasks.length,
         successful: successCount,

@@ -13,6 +13,12 @@ const listSessionsArgsSchema = z.object({
     .default('list')
     .describe('Action: list (default), delete (single session), clear (all sessions)'),
   sessionId: z.string().optional().describe('Session ID for delete action'),
+  workingDir: z
+    .string()
+    .optional()
+    .describe(
+      'With delete: remove only the session for this directory. Without it, every session with that ID is removed (one sessionId can exist once per directory).'
+    ),
 });
 
 /**
@@ -33,15 +39,17 @@ Tip: Use \`sessionId\` parameter in \`ask-codex\` to start a new session.`;
   }
 
   let output = `## Active Sessions (${sessions.length}/${stats.maxSessions})\n\n`;
-  output += `| Session ID | Workspace | Last Activity | Has Resume |\n`;
+  output += `| Session ID | Directory | Last Activity | Has Resume |\n`;
   output += `|------------|-----------|---------------|------------|\n`;
 
   for (const session of sessions) {
     const lastActivity = new Date(session.updatedAt).toLocaleString();
     const hasResume = session.codexConversationId ? '✅' : '❌';
-    const workspaceShort = session.workspaceId.substring(0, 8);
+    // The same sessionId can appear once per directory, so show which one.
+    const where = session.workingDir ?? session.workspaceId.substring(0, 8);
 
-    output += `| \`${session.sessionId.substring(0, 16)}...\` | ${workspaceShort} | ${lastActivity} | ${hasResume} |\n`;
+    // Full ID: a truncated one could not be copied into delete/sessionId.
+    output += `| \`${session.sessionId}\` | ${where} | ${lastActivity} | ${hasResume} |\n`;
   }
 
   output += `\n**Statistics:**\n`;
@@ -69,6 +77,7 @@ export const listSessionsTool: UnifiedTool = {
       stats: { type: 'object' },
       success: { type: 'boolean' },
       sessionId: { type: 'string' },
+      deleted: { type: 'number' },
       error: { type: 'string' },
     },
     required: ['action'],
@@ -78,7 +87,7 @@ export const listSessionsTool: UnifiedTool = {
   },
   category: 'utility',
   execute: async (args, onProgress) => {
-    const { action, sessionId } = args;
+    const { action, sessionId, workingDir } = args;
 
     switch (action) {
       case 'delete':
@@ -90,11 +99,16 @@ export const listSessionsTool: UnifiedTool = {
             structuredContent: { action: 'delete', success: false, error },
           } as StructuredToolResult;
         }
-        const deleted = deleteSession(sessionId as string);
+        const deleted = deleteSession(sessionId as string, workingDir as string | undefined);
         if (deleted) {
+          const scope = workingDir
+            ? ` for ${workingDir}`
+            : deleted > 1
+              ? ` (${deleted} directories)`
+              : '';
           return {
-            text: `✅ Session \`${sessionId}\` deleted successfully.`,
-            structuredContent: { action: 'delete', sessionId, success: true },
+            text: `✅ Session \`${sessionId}\`${scope} deleted successfully.`,
+            structuredContent: { action: 'delete', sessionId, success: true, deleted },
           } as StructuredToolResult;
         } else {
           return {
@@ -122,6 +136,7 @@ export const listSessionsTool: UnifiedTool = {
             sessions: sessions.map(s => ({
               sessionId: s.sessionId,
               workspaceId: s.workspaceId,
+              workingDir: s.workingDir,
               updatedAt: s.updatedAt,
               hasResume: !!s.codexConversationId,
             })),

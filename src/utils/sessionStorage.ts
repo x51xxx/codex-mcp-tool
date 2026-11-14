@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
-import { join, basename, dirname } from 'path';
+import { join, basename, dirname, resolve } from 'path';
 import { Logger } from './logger.js';
 
 /**
@@ -8,7 +8,9 @@ import { Logger } from './logger.js';
  * Provides workspace-isolated session management with native Codex resume support
  *
  * Features:
- * - Workspace isolation via MD5 hash (repo:head:path)
+ * - Sessions keyed by (working directory, sessionId): the same sessionId in two
+ *   directories is two independent conversations
+ * - Workspace hash (repo:head:path) for the no-sessionId fallback
  * - Native Codex conversation ID storage for resume
  * - Configurable TTL via CODEX_SESSION_TTL_MS
  * - Aggressive cleanup (max 50 sessions)
@@ -34,9 +36,26 @@ export interface SessionData {
 }
 
 /**
- * In-memory session storage
+ * In-memory session storage, keyed by `storeKey(sessionId, workingDir)`.
+ *
+ * Keyed by sessionId alone, a sessionId reused in a second directory had to
+ * either resume the first directory's conversation (a leak) or replace it (the
+ * first conversation silently lost). With the directory in the key both live
+ * side by side.
  */
 const sessionStore = new Map<string, SessionData>();
+
+function storeKey(sessionId: string, workingDir?: string): string {
+  return workingDir ? `${resolve(workingDir)}\u0000${sessionId}` : sessionId;
+}
+
+function keyOfSession(session: SessionData): string {
+  return storeKey(session.sessionId, session.workingDir);
+}
+
+function isExpired(session: SessionData): boolean {
+  return Date.now() - session.updatedAt > SESSION_TTL_MS;
+}
 
 /**
  * Find git root directory by walking up the tree
@@ -142,7 +161,8 @@ function cleanupSessions(): void {
 export function saveSession(data: Partial<SessionData> & { sessionId: string }): SessionData {
   cleanupSessions();
 
-  const existing = sessionStore.get(data.sessionId);
+  const key = storeKey(data.sessionId, data.workingDir);
+  const existing = sessionStore.get(key);
   const now = Date.now();
 
   const session: SessionData = {
@@ -152,30 +172,46 @@ export function saveSession(data: Partial<SessionData> & { sessionId: string }):
     lastPrompt: data.lastPrompt || existing?.lastPrompt || '',
     lastResponse: data.lastResponse || existing?.lastResponse || '',
     model: data.model || existing?.model,
-    workingDir: data.workingDir || existing?.workingDir,
+    workingDir: data.workingDir ? resolve(data.workingDir) : existing?.workingDir,
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
 
-  sessionStore.set(data.sessionId, session);
+  sessionStore.set(key, session);
   Logger.debug(`Saved session: ${data.sessionId} (workspace: ${session.workspaceId})`);
 
   return session;
 }
 
 /**
- * Get session by ID
+ * Get a session by ID.
+ *
+ * With `workingDir`, returns that directory's session only. Without it (e.g.
+ * `health sessionId:x`), returns the most recently used session with that ID
+ * in any directory.
  */
-export function getSession(sessionId: string): SessionData | null {
-  const session = sessionStore.get(sessionId);
+export function getSession(sessionId: string, workingDir?: string): SessionData | null {
+  let session: SessionData | null = null;
+
+  if (workingDir) {
+    session = sessionStore.get(storeKey(sessionId, workingDir)) ?? null;
+  } else {
+    for (const candidate of sessionStore.values()) {
+      if (
+        candidate.sessionId === sessionId &&
+        (!session || candidate.updatedAt > session.updatedAt)
+      ) {
+        session = candidate;
+      }
+    }
+  }
 
   if (!session) {
     return null;
   }
 
-  // Check if expired
-  if (Date.now() - session.updatedAt > SESSION_TTL_MS) {
-    sessionStore.delete(sessionId);
+  if (isExpired(session)) {
+    sessionStore.delete(keyOfSession(session));
     Logger.debug(`Session expired: ${sessionId}`);
     return null;
   }
@@ -213,11 +249,14 @@ export function getOrCreateSession(workingDir: string, sessionId?: string): Sess
 
   // If sessionId provided explicitly - honor it
   if (sessionId) {
-    const existing = getSession(sessionId);
+    // Looked up by directory, not workspaceId: workspaceId hashes .git/HEAD, so
+    // a branch switch between turns would look like another workspace and drop
+    // the conversation. A sessionId used in another directory is a separate
+    // entry, so neither conversation resumes or replaces the other.
+    const existing = getSession(sessionId, workingDir);
     if (existing) {
       return existing;
     }
-    // Create NEW session with requested ID (don't fall back to workspace!)
     return saveSession({
       sessionId,
       workspaceId,
@@ -246,8 +285,12 @@ export function getOrCreateSession(workingDir: string, sessionId?: string): Sess
 /**
  * Update session with Codex conversation ID (for native resume)
  */
-export function setCodexConversationId(sessionId: string, conversationId: string): void {
-  const session = getSession(sessionId);
+export function setCodexConversationId(
+  sessionId: string,
+  conversationId: string,
+  workingDir?: string
+): void {
+  const session = getSession(sessionId, workingDir);
   if (session) {
     saveSession({
       ...session,
@@ -260,8 +303,8 @@ export function setCodexConversationId(sessionId: string, conversationId: string
 /**
  * Get Codex conversation ID for resume
  */
-export function getCodexConversationId(sessionId: string): string | undefined {
-  const session = getSession(sessionId);
+export function getCodexConversationId(sessionId: string, workingDir?: string): string | undefined {
+  const session = getSession(sessionId, workingDir);
   return session?.codexConversationId;
 }
 
@@ -274,14 +317,25 @@ export function listSessions(): SessionData[] {
 }
 
 /**
- * Delete a session
+ * Delete a session. With `workingDir`, only that directory's session;
+ * without it, every session with this ID. Returns how many were removed.
  */
-export function deleteSession(sessionId: string): boolean {
-  const deleted = sessionStore.delete(sessionId);
-  if (deleted) {
-    Logger.debug(`Deleted session: ${sessionId}`);
+export function deleteSession(sessionId: string, workingDir?: string): number {
+  let removed = 0;
+  if (workingDir) {
+    removed = sessionStore.delete(storeKey(sessionId, workingDir)) ? 1 : 0;
+  } else {
+    for (const [key, session] of sessionStore.entries()) {
+      if (session.sessionId === sessionId) {
+        sessionStore.delete(key);
+        removed++;
+      }
+    }
   }
-  return deleted;
+  if (removed) {
+    Logger.debug(`Deleted ${removed} session(s): ${sessionId}`);
+  }
+  return removed;
 }
 
 /**
@@ -324,10 +378,12 @@ export function getSessionStats(): {
  * Pattern: "conversation id: abc123" or "Conversation ID: abc-123-def"
  */
 export function parseConversationIdFromOutput(output: string): string | null {
+  // Anchored to a whole line: Codex prints `session id: <uuid>` in its stderr
+  // banner, and an unanchored match could pick up the same words from the
+  // model's answer or an echoed prompt.
   const patterns = [
-    /conversation\s*id\s*:\s*([a-zA-Z0-9-]+)/i,
-    /conv(?:ersation)?[-_]?id\s*[=:]\s*([a-zA-Z0-9-]+)/i,
-    /session\s*id\s*:\s*([a-zA-Z0-9-]+)/i,
+    /^\s*session\s*id\s*:\s*([0-9a-fA-F][0-9a-fA-F-]{7,})\s*$/im,
+    /^\s*conversation\s*id\s*:\s*([0-9a-fA-F][0-9a-fA-F-]{7,})\s*$/im,
   ];
 
   for (const pattern of patterns) {
